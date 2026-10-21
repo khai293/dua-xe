@@ -18,6 +18,7 @@ export class UI {
     this.level = 0;
     this.lastPhase = null;
     this.lastResult = null;
+    this.victoryTimer = null;
     this.lastSaveStamp = '';
     this.storyPending = null;
     this.storyIndex = 0;
@@ -262,6 +263,7 @@ export class UI {
   preview(kiss = false) {this.closeDialogs();this.storyPending = null;$('storyScreen').hidden = true;this.resetInput();this._act('preview', kiss);}
 
   showMenu() {
+    clearTimeout(this.victoryTimer);if($('victoryScene'))$('victoryScene').hidden=true;
     $('menu').hidden = false;$('hud').hidden = true;$('storyScreen').hidden = true;$('cinemaScreen').hidden = true;
     this.resetInput();this.renderRoutes();this.updateSelection();this.syncSettings();
   }
@@ -294,7 +296,7 @@ export class UI {
     if (phase !== 'paused') this._closeDialog('pauseDialog');
     if (phase !== 'result') {this._closeDialog('resultDialog');this.lastResult = null;}
     if (phase === 'paused' && !$('settingsDialog').open && !$('helpDialog').open) this._openDialog('pauseDialog');
-    if (phase === 'result' && state.result && state.result !== this.lastResult) {this.lastResult = state.result;this.showResult(state);}
+    if (phase === 'result' && state.result && state.result !== this.lastResult) {this.lastResult = state.result;this.showResult(state);if(state.result.won)this.showVictory();}
     if (phase === 'cutscene') {
       if (this.lastPhase !== 'cutscene') {
         $('cinemaImage').style.animationName = '';
@@ -323,7 +325,7 @@ export class UI {
       $('speedBar').style.width = `${Math.min(100,speed/(bike.max*3.6)*100)}%`;
       $('hudGrip').textContent = state.environment?.weather === 'rain' ? 'ĐƯỜNG ƯỚT · PHANH SỚM' : state.environment?.weather === 'fog' ? 'SƯƠNG NHẸ · GIỮ TẦM NHÌN' : 'BÌNH TĨNH QUA TỪNG GÓC CUA';
       $('carryCount').textContent = `♡ ${this.engine.save?.totalCarries || 0} lần được Lucien cứu hộ`;
-      $('hudCheckpoint').textContent = `CP ${(state.checkpointIndex || 0)+1} / ${state.checkpoints?.length || 1}`;
+      // Checkpoints are internal; the road and compact HUD stay visually clear.
       const turn = state.nextTurn;
       const turning = turn && turn.distance < 140 && Math.abs(turn.angle) > .4;
       $('navArrow').textContent = turning ? (turn.angle > 0 ? '↱' : '↰') : '↑';
@@ -337,7 +339,7 @@ export class UI {
       }
       $('raceWarning').hidden = !warning;$('raceWarning').textContent = warning;
       $('countdown').textContent = phase === 'countdown' ? String(Math.max(1,Math.ceil(state.countdown))) : '';
-      if (now-this.mapLast > 90) {this.drawMap($('minimap'),state.track,player,false,state);this.mapLast = now;}
+      if (now-this.mapLast > 140 && $('minimap').getClientRects().length) {this.drawMap($('minimap'),state.track,player,false,state);this.mapLast = now;}
     }
     if (phase !== this.lastPhase) {const previous = this.lastPhase;this.lastPhase = phase;if (!(previous === 'countdown' && phase === 'race')) this.resetInput();if (phase === 'menu') {this.renderRoutes();this.syncSettings();}}
   }
@@ -382,6 +384,18 @@ export class UI {
     else if (kissMoment) {speaker='AURORA';text='“Anh… mọi người đang nhìn kìa!”';note='Một nụ hôn má, hai gương mặt ửng hồng. ♡';}
     else {speaker='LUCIEN';text='“Nghỉ một chút thôi. Rồi em lại tự cầm lái nhé.”';note=scene.preview ? 'Xem thử không thay đổi tiến trình hay thành tích.' : 'Cứu hộ về checkpoint gần nhất · +8 giây · Không cấp huy chương.';}
     $('cinemaSpeaker').textContent=speaker;$('cinemaText').textContent=text;$('cinemaNote').textContent=note;
+  }
+
+  showVictory() {
+    const layer=$('victoryScene');
+    if(!layer)return;
+    clearTimeout(this.victoryTimer);
+    layer.hidden=false;
+    layer.classList.remove('victory-live');
+    // Restart CSS keyframes when a later race is won.
+    void layer.offsetWidth;
+    layer.classList.add('victory-live');
+    this.victoryTimer=setTimeout(()=>{layer.classList.remove('victory-live');layer.hidden=true;},2800);
   }
 
   showResult(state) {
