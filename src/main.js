@@ -96,7 +96,10 @@ try {
   const began=performance.now();engine.update(dt,input);metrics.updateMs=performance.now()-began;
   // Menu and cinematics have their own retained artwork. Avoid rendering an obscured world.
   if(!['menu','cutscene'].includes(engine.state.phase)&&!ui.storyPending) renderer.render(engine.state,dt);
-  if(now-lastHUD>32||engine.state.phase!==ui.lastPhase){ui.update(engine.state);lastHUD=now;}
+  // Updating HUD CSS/layout at 60Hz on mobile competes with canvas rendering.
+  // 20Hz is enough for speed/time readouts; controls remain event-driven.
+  const hudInterval = matchMedia('(pointer:coarse)').matches ? 50 : 33;
+  if(now-lastHUD>hudInterval||engine.state.phase!==ui.lastPhase){ui.update(engine.state);lastHUD=now;}
   audio.update(engine.state);metrics.frames++;metrics.frameMs=dt*1000;metrics.renderMs=renderer.stats.frameMs;metrics.fps=renderer.stats.fps;
   requestAnimationFrame(frame);
  };

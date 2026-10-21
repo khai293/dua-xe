@@ -38,3 +38,70 @@
 .progress-backup{display:flex;gap:10px;margin-top:14px}.progress-backup label{cursor:pointer}.settings-dialog #progressStatus{display:block;font-size:11px;line-height:1.5;color:var(--teal);margin-top:10px}
 @media(max-width:560px){.cinema-pose{width:90vw;height:90vw}.cinema-runner{width:70vw;height:70vw}.progress-backup{flex-direction:column}}
 @media(max-height:560px) and (min-width:561px){.cinema-pose{width:56vh;height:56vh}.cinema-runner{width:50vh;height:50vh}}
+
+
+/* V8.1: cleaner landscape HUD: leave the middle of the road completely clear. */
+@media (pointer:coarse) {
+  #hud .race-logo,#hud .hud-top .race-actions #raceSettingsButton,
+  #hud .race-footnote>span,#hud .speed-panel .mood-portrait,
+  #hud .speed-panel #hudGear,#hud .speed-panel #hudGrip,
+  #hud .minimap-panel>div{display:none!important}
+  #hud .race-metrics{background:#163a36ad;backdrop-filter:none;border:0}
+  #hud .hud-top{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right))}
+  #hud .navigation{top:65px;left:max(8px,env(safe-area-inset-left));padding:6px 10px;max-width:200px;box-shadow:none;background:#183e3ba8}
+  #hud .navigation small,#hud .navigation b{display:none}
+  #hud .navigation>span{font-size:27px;width:28px}
+  #hud .navigation strong{font-size:10px}
+  #hud .hud-bottom{bottom:calc(92px + env(safe-area-inset-bottom));left:10px;right:10px}
+  #hud .minimap-panel{width:105px;padding:4px;background:#f8f6efd4}
+  #hud .minimap-panel canvas{height:63px}
+  #hud .speed-panel{width:90px;padding:5px 9px;background:#173e3baf;backdrop-filter:none}
+  #hud .speed-panel strong{font-size:32px;letter-spacing:-2px}
+  #hud .speed-panel small{font-size:7px}
+  #hud .race-footnote{bottom:calc(105px + env(safe-area-inset-bottom));left:auto;right:max(8px,env(safe-area-inset-right))}
+  #hud .touch-controls{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom))}
+  #hud .touch-controls button{box-shadow:none;background:#153a3894}
+  #hud .touch-controls .touch-throttle{background:#287258ae}
+  #hud .touch-controls button{min-width:44px;min-height:44px}
+  #hud .race-warning{max-width:230px}
+}
+@media (pointer:coarse) and (max-height:480px) and (orientation:landscape) {
+  #hud .hud-top{top:max(5px,env(safe-area-inset-top))}
+  #hud .race-metrics{padding:3px 0}
+  #hud .race-metrics>div{min-width:48px;padding:0 9px}
+  #hud .race-metrics strong{font-size:16px}
+  #hud .race-metrics .time-metric strong{font-size:15px;min-width:66px}
+  #hud .race-metrics span{font-size:5px}
+  #hud .race-actions{min-width:auto}
+  #hud .navigation{top:51px}
+  #hud .hud-bottom{bottom:calc(72px + env(safe-area-inset-bottom))}
+  #hud .minimap-panel{width:85px}
+  #hud .minimap-panel canvas{height:48px}
+  #hud .speed-panel{width:76px}
+  #hud .speed-panel strong{font-size:27px}
+  #hud .touch-controls button{width:calc(47px * var(--control-scale));height:calc(46px * var(--control-scale))}
+  #hud .touch-controls .touch-throttle{width:calc(57px * var(--control-scale));height:calc(68px * var(--control-scale))}
+  #hud .touch-controls .touch-tuck{width:calc(43px * var(--control-scale));height:calc(43px * var(--control-scale))}
+}
+
+/* Finish celebration lives inside the result dialog, without capturing touches. */
+.result-dialog{position:relative;overflow:hidden}
+.victory-scene{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(150deg,#0c3548f2,#246e67f1 55%,#ae7c40ed);color:#fff9db;text-align:center}
+.victory-scene[hidden]{display:none!important}
+.victory-flash{position:absolute;inset:-30%;background:radial-gradient(circle,#fff5b6aa,transparent 50%);opacity:0}
+.victory-medal{z-index:1;font-size:min(25vw,115px);color:#ffe398;text-shadow:0 0 30px #ffe3988a,0 8px 0 #6e5434}
+.victory-title{z-index:1;font-weight:900;font-style:italic;font-size:clamp(17px,5vw,30px);letter-spacing:1px;text-shadow:0 3px 20px #092b33}
+.victory-subtitle{z-index:1;margin-top:12px;font-size:10px;letter-spacing:2px}
+.victory-speed{position:absolute;inset:0;background:repeating-linear-gradient(165deg,transparent 0 27px,#ffe5ac20 29px 31px,transparent 34px 59px);transform:translateX(-100%)}
+.victory-confetti{position:absolute;inset:0;background-image:radial-gradient(circle at 12% 18%,#f6dc8e 0 4px,transparent 5px),radial-gradient(circle at 88% 33%,#eb9b88 0 5px,transparent 6px),radial-gradient(circle at 35% 76%,#a8e4dc 0 4px,transparent 5px),radial-gradient(circle at 70% 70%,#f7e7aa 0 5px,transparent 6px);background-size:95px 103px;opacity:0}
+.victory-live .victory-flash{animation:gpVictoryFlash 2.7s ease-out both}
+.victory-live .victory-medal{animation:gpVictoryMedal 2.7s cubic-bezier(.2,.8,.2,1) both}
+.victory-live .victory-title{animation:gpVictoryTitle 2.7s ease-out both}
+.victory-live .victory-confetti{animation:gpConfetti 2.7s linear both}
+.victory-live .victory-speed{animation:gpSpeed 1.5s linear both}
+@keyframes gpVictoryFlash{0%{opacity:1}45%,100%{opacity:0}}
+@keyframes gpVictoryMedal{0%{transform:scale(.25) rotate(-20deg);opacity:0}18%{transform:scale(1.2) rotate(7deg);opacity:1}32%{transform:scale(1)}80%{opacity:1}100%{transform:scale(1.12);opacity:0}}
+@keyframes gpVictoryTitle{0%,15%{transform:translateY(22px);opacity:0}30%,78%{transform:translateY(0);opacity:1}100%{opacity:0}}
+@keyframes gpConfetti{0%{opacity:0;transform:translateY(-60px)}16%,80%{opacity:1}100%{opacity:0;transform:translateY(180px)}}
+@keyframes gpSpeed{0%{transform:translateX(-110%)}100%{transform:translateX(110%)}}
+@media(prefers-reduced-motion:reduce){.victory-live .victory-flash,.victory-live .victory-medal,.victory-live .victory-title,.victory-live .victory-confetti,.victory-live .victory-speed{animation:none!important}.victory-live .victory-medal,.victory-live .victory-title{opacity:1}}

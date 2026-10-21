@@ -74,12 +74,39 @@ export function sampleTrack(track, distance, offset = 0) {
     heading: Math.atan2(ty, tx), tx, ty, nx: -ty, ny: tx, progress, index: i};
 }
 
+// Cache neighboring track segments once per route. A car normally needs to check
+// dozens of segments, not the entire OSM loop at every 120 Hz physics tick.
+const segmentGrids = new WeakMap();
+function getSegmentGrid(track) {
+  let grid = segmentGrids.get(track);
+  if (grid) return grid;
+  const cell = 48, buckets = new Map(), pts = track.points;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const loX = Math.floor(Math.min(a[0], b[0]) / cell), hiX = Math.floor(Math.max(a[0], b[0]) / cell);
+    const loY = Math.floor(Math.min(a[1], b[1]) / cell), hiY = Math.floor(Math.max(a[1], b[1]) / cell);
+    for (let cx = loX; cx <= hiX; cx++) for (let cy = loY; cy <= hiY; cy++) {
+      const key = cx + ',' + cy;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(i);
+    }
+  }
+  grid = {cell, buckets};
+  segmentGrids.set(track, grid);
+  return grid;
+}
+
 export function nearestPoint(track, x, y, hint = null) {
   let best = null, bestDistance = Infinity;
-  // A progress hint disambiguates routes passing the same physical intersection twice.
-  const points = track.points;
-  for (let i = 0; i < points.length; i++) {
-    const a = points[i], b = points[(i + 1) % points.length], dx = b[0] - a[0], dy = b[1] - a[1], d2 = dx * dx + dy * dy;
+  const points = track.points, grid = getSegmentGrid(track);
+  const cx = Math.floor(x / grid.cell), cy = Math.floor(y / grid.cell);
+  const nearby = new Set();
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+    for (const index of grid.buckets.get((cx + dx) + ',' + (cy + dy)) || []) nearby.add(index);
+  }
+  const consider = i => {
+    const a = points[i], b = points[(i + 1) % points.length];
+    const dx = b[0] - a[0], dy = b[1] - a[1], d2 = dx * dx + dy * dy;
     const t = clamp(((x - a[0]) * dx + (y - a[1]) * dy) / (d2 || 1), 0, 1);
     const px = a[0] + dx * t, py = a[1] + dy * t;
     const distance = Math.hypot(x - px, y - py), len = Math.sqrt(d2) || 1;
@@ -91,6 +118,13 @@ export function nearestPoint(track, x, y, hint = null) {
       best = {x: px, y: py, progress, distance, signedDistance: ((x - px) * -dy + (y - py) * dx) / len,
         heading: Math.atan2(dy, dx), tx: dx / len, ty: dy / len, nx: -dy / len, ny: dx / len, index: i};
     }
+  };
+  for (const i of nearby) consider(i);
+  // Safety net for rescue, teleports, custom maps and positions far off the track.
+  // Nearby cells include all segments crossing the surrounding 48 m cells.
+  if (!best || best.distance > 24) {
+    best = null; bestDistance = Infinity;
+    for (let i = 0; i < points.length; i++) consider(i);
   }
   return best;
 }

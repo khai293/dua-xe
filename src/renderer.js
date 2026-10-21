@@ -269,6 +269,11 @@ export class Renderer {
     this.clouds = Array.from({ length: 8 }, (_, i) => ({ x: hash(i * 8) * 1.4 - .2, y: .08 + hash(i * 7) * .17, w: 70 + hash(i * 6) * 180 }));
     for (let i = 0; i < 10; i++) this.spectators.push(makeSpectator(i));
     this.resize();
+    // Avoid a forced layout read on every animation frame.
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this.resize());
+      this.resizeObserver.observe(this.canvas);
+    } else window.addEventListener('resize', () => this.resize(), {passive:true});
   }
 
   async load() {
@@ -391,7 +396,13 @@ export class Renderer {
     }
     // Preserve actual OSM area footprints; cache bounds for distance culling.
     const areas = (this.data.geo?.areas || []).map(a => ({ ...a, minX: Math.min(...a.points.map(p => p[0])), maxX: Math.max(...a.points.map(p => p[0])), minY: Math.min(...a.points.map(p => p[1])), maxY: Math.max(...a.points.map(p => p[1])) }));
-    const out = { samples, props, halfWidth, areas, track };
+    const propCell = 96, propBuckets = new Map();
+    for (const prop of props) {
+      const key = Math.floor(prop.x / propCell) + ',' + Math.floor(prop.y / propCell);
+      if (!propBuckets.has(key)) propBuckets.set(key, []);
+      propBuckets.get(key).push(prop);
+    }
+    const out = { samples, props, propIndex:{cell:propCell, buckets:propBuckets}, halfWidth, areas, track };
     this.routeCache.set(key, out); return out;
   }
 
@@ -429,7 +440,8 @@ export class Renderer {
   render(state = {}, dt = 1 / 60) {
     const began = performance.now();
     this.time += Math.min(dt || 0, .1);
-    this.quality = state.config?.quality || this.quality || 'high'; this.resize();
+    const nextQuality = state.config?.quality || this.quality || 'high';
+    if (this.quality !== nextQuality) { this.quality = nextQuality; this.resize(); }
     const ctx = this.ctx, W = this.width, H = this.height;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     const track = state.track || this.data.tracks?.[state.config?.track || 0] || this.data.geo?.routes?.[0];
@@ -636,18 +648,18 @@ export class Renderer {
       if (p.x < -p.scale * (object.w || 5) || p.x > this.width + p.scale * (object.w || 5)) return;
       items.push({ object, p });
     };
-    for (const prop of scene.props) {
-      if (this.quality === 'low' && (prop.kind === 'person' && prop.id % 3 || prop.kind === 'bicycle')) continue;
-      add(prop);
+    const {cell,buckets} = scene.propIndex;
+    const range=Math.ceil(this._maxDistance/cell)+1;
+    const cx=Math.floor(player.x/cell),cy=Math.floor(player.y/cell);
+    for(let ix=cx-range;ix<=cx+range;ix++) for(let iy=cy-range;iy<=cy+range;iy++) {
+      for(const prop of buckets.get(ix+','+iy)||[]) {
+        if(this.quality==='low' && ((prop.kind==='person' && prop.id%3)||prop.kind==='bicycle'))continue;
+        add(prop);
+      }
     }
     for (const ob of state.obstacles || []) if (!ob.hit || ob.type === 'barrier') add({ ...ob, kind: 'obstacle', w: ob.type === 'barrier' ? 2.4 : ob.type === 'crate' ? 1.4 : .7, h: ob.type === 'barrier' ? 1.2 : ob.type === 'crate' ? 1.1 : .9 });
     for (const item of state.pickups || []) if (!item.collected) add({ ...item, kind: 'pickup', w: .9, h: 1.1 });
-    for (let i = 0; i < (state.checkpoints || []).length; i++) {
-      const cp = state.checkpoints[i];
-      if (i !== (state.checkpointIndex || 0)) continue;
-      if (Number.isFinite(cp.x)) add({ ...cp, kind: 'checkpoint', w: scene.halfWidth * 2, h: 4.5, index: i });
-    }
-    const start = scene.samples[0]; add({ kind: 'gate', x: start.x, y: start.y, w: scene.halfWidth * 2 + 1, h: 6.5, nx: start.nx, ny: start.ny, id: 0 });
+    // Invisible checkpoints still control results; no arches obscure the route.
     for (const rival of state.rivals || []) add({ ...rival, kind: 'rider', w: 1.25, h: 2.4, character: rival.id || 'lucien', isPlayer: false });
     add({ ...player, kind: 'rider', w: 1.4, h: 2.6, character: 'aurora', isPlayer: true });
     items.sort((a, b) => b.p.z - a.p.z);
@@ -706,9 +718,7 @@ export class Renderer {
       } else if (o.kind === 'pickup') {
         this.shadow(p, .45, .2, '#c9a45133');
         this.drawSprite(this.pickup, p.x, p.y - p.scale * (.35 + Math.sin(this.time * 3 + (o.id || 0)) * .12), p.scale * o.w, p.scale * o.h, 1, null, Math.sin(this.time * 2) * .07);
-      } else if (o.kind === 'gate') this.drawGate(o, scene, 'START / FINISH', '#245e62');
-      else if (o.kind === 'checkpoint') this.drawCheckpoint(o, scene, state);
-      else if (o.kind === 'rider') this.drawRider(o, p, state, theme);
+      } else if (o.kind === 'rider') this.drawRider(o, p, state, theme);
       g.restore();
     }
   }
