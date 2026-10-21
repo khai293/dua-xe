@@ -1,0 +1,39 @@
+{
+  "environment": "System Chromium headless in cloud container; no physical mobile device or hardware GPU profiler",
+  "scenarios": [
+    {
+      "width": 1440,
+      "height": 900,
+      "quality": "high",
+      "samples": 94,
+      "meanFrameMs": 31.735106382978728,
+      "p95Ms": 33.40000000000009,
+      "fps": 31.5108444235862,
+      "renderMs": 4.699999999254942,
+      "visibleObjects": 500
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "quality": "low",
+      "samples": 94,
+      "meanFrameMs": 29.07553191489362,
+      "p95Ms": 33.40000000000009,
+      "fps": 34.39317990560169,
+      "renderMs": 2.800000000745058,
+      "visibleObjects": 201
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "quality": "low",
+      "mobile": true,
+      "samples": 94,
+      "meanFrameMs": 16.843617021276597,
+      "p95Ms": 16.799999999999955,
+      "fps": 59.36967094044085,
+      "renderMs": 2.7000000029802322,
+      "visibleObjects": 217
+    }
+  ]
+}

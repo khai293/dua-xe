@@ -1,0 +1,358 @@
+{
+  "date": "2026-10-21T11:54:33.369Z",
+  "origin": "http://127.0.0.1:4173",
+  "browser": "system Chromium headless / Playwright",
+  "tests": [
+    {
+      "name": "boot: assets, four bikes and ten selectable custom maps",
+      "status": "passed",
+      "ms": 174,
+      "evidence": {
+        "phase": "menu",
+        "tracks": 10,
+        "levels": 5,
+        "canvas": 1440
+      }
+    },
+    {
+      "name": "all four vehicle buttons select actual gameplay configuration",
+      "status": "passed",
+      "ms": 741
+    },
+    {
+      "name": "all ten routes start through the custom-race menu",
+      "status": "passed",
+      "ms": 2051,
+      "evidence": {
+        "routes": 10
+      }
+    },
+    {
+      "name": "five story chapters load via existing save progression and preserve dialogue",
+      "status": "passed",
+      "ms": 1963,
+      "evidence": {
+        "chapters": 5,
+        "note": "save unlock was a test fixture; no claim of five player-won races"
+      }
+    },
+    {
+      "name": "keyboard acceleration and steering move the physical bike; no-input waits do not auto-drive",
+      "status": "passed",
+      "ms": 2423,
+      "evidence": {
+        "movedMetres": 1.760592524862533,
+        "speed": 3.533596054822292
+      }
+    },
+    {
+      "name": "pause/resume, camera and live weather/light settings work",
+      "status": "passed",
+      "ms": 2423
+    },
+    {
+      "name": "preview carry and kiss leave persistence unchanged; Skip exits the state machine",
+      "status": "passed",
+      "ms": 1406,
+      "evidence": {
+        "sameSave": true,
+        "sameLocalStorage": true
+      }
+    },
+    {
+      "name": "light collision stays in race; third real severe collision enables kiss exactly once each",
+      "status": "passed",
+      "ms": 236,
+      "evidence": {
+        "carries": 3,
+        "penaltySeconds": 24,
+        "note": "severity event injected; spatial obstacle tests are covered by engine suite"
+      }
+    },
+    {
+      "name": "a complete real OSM lap finishes by input-only simulation, then result controls work",
+      "status": "passed",
+      "ms": 1058,
+      "evidence": {
+        "time": 65.75833333333173,
+        "checkpoints": 10,
+        "collisions": 0,
+        "note": "test-only feedback driver; no position edits, no rescue"
+      }
+    },
+    {
+      "name": "responsive portrait and landscape UI: menu scroll, reachable start and separated HUD/touch",
+      "status": "passed",
+      "ms": 1534,
+      "evidence": [
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "boxes": {
+            "navigation": {
+              "left": 10,
+              "right": 220,
+              "top": 83,
+              "bottom": 152,
+              "width": 210,
+              "height": 69
+            },
+            "touch": {
+              "left": 0,
+              "right": 0,
+              "top": 0,
+              "bottom": 0,
+              "width": 0,
+              "height": 0
+            },
+            "hudTop": {
+              "left": 10,
+              "right": 380,
+              "top": 11,
+              "bottom": 74,
+              "width": 370,
+              "height": 63
+            },
+            "minimap": {
+              "left": 10,
+              "right": 136,
+              "top": 580,
+              "bottom": 700,
+              "width": 126,
+              "height": 120
+            },
+            "speed": {
+              "left": 269,
+              "right": 380,
+              "top": 596.8125,
+              "bottom": 700,
+              "width": 111,
+              "height": 103.1875
+            },
+            "viewport": {
+              "w": 390,
+              "h": 844
+            }
+          }
+        },
+        {
+          "size": {
+            "width": 844,
+            "height": 390
+          },
+          "boxes": {
+            "navigation": {
+              "left": 15,
+              "right": 222.375,
+              "top": 78,
+              "bottom": 132,
+              "width": 207.375,
+              "height": 54
+            },
+            "touch": {
+              "left": 0,
+              "right": 0,
+              "top": 0,
+              "bottom": 0,
+              "width": 0,
+              "height": 0
+            },
+            "hudTop": {
+              "left": 15,
+              "right": 829,
+              "top": 10,
+              "bottom": 56,
+              "width": 814,
+              "height": 46
+            },
+            "minimap": {
+              "left": 15,
+              "right": 137,
+              "top": 174,
+              "bottom": 278,
+              "width": 122,
+              "height": 104
+            },
+            "speed": {
+              "left": 722,
+              "right": 829,
+              "top": 178.40625,
+              "bottom": 278,
+              "width": 107,
+              "height": 99.59375
+            },
+            "viewport": {
+              "w": 844,
+              "h": 390
+            }
+          }
+        },
+        {
+          "size": {
+            "width": 1440,
+            "height": 1000
+          },
+          "boxes": {
+            "navigation": {
+              "left": 27,
+              "right": 297,
+              "top": 118,
+              "bottom": 206,
+              "width": 270,
+              "height": 88
+            },
+            "touch": {
+              "left": 0,
+              "right": 0,
+              "top": 0,
+              "bottom": 0,
+              "width": 0,
+              "height": 0
+            },
+            "hudTop": {
+              "left": 27,
+              "right": 1413,
+              "top": 20,
+              "bottom": 78.5,
+              "width": 1386,
+              "height": 58.5
+            },
+            "minimap": {
+              "left": 27,
+              "right": 223,
+              "top": 797,
+              "bottom": 964,
+              "width": 196,
+              "height": 167
+            },
+            "speed": {
+              "left": 1253,
+              "right": 1413,
+              "top": 828,
+              "bottom": 964,
+              "width": 160,
+              "height": 136
+            },
+            "viewport": {
+              "w": 1440,
+              "h": 1000
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "emulated mobile pointer controls accelerate without stuck buttons",
+      "status": "passed",
+      "ms": 2868,
+      "evidence": {
+        "speed": 5.231596755054256,
+        "device": "Chromium mobile emulation"
+      }
+    },
+    {
+      "name": "measured desktop RAF/renderer timing and same-process restart heap samples",
+      "status": "passed",
+      "ms": 4700,
+      "evidence": {
+        "frames": 115,
+        "meanMs": 36.520869565217374,
+        "medianMs": 33.30000000000291,
+        "p95Ms": 50,
+        "estimatedFPS": 27.381604323912487,
+        "heapBytes": [
+          12323897,
+          12323897,
+          12323897,
+          11384741,
+          11384741,
+          11384741,
+          11384741,
+          12925233
+        ],
+        "renderer": {
+          "fps": 28.735632183908052,
+          "frameMs": 106.90000000223517,
+          "visibleObjects": 489,
+          "quality": "high"
+        },
+        "metrics": {
+          "frames": 791,
+          "frameMs": 33.29999999999927,
+          "updateMs": 0.3999999985098839,
+          "renderMs": 4.100000001490116,
+          "fps": 28.735632183908052
+        }
+      }
+    },
+    {
+      "name": "standard gamepad analog input accelerates and steers without keyboard assistance",
+      "status": "passed",
+      "ms": 921,
+      "evidence": {
+        "speed": 6.881946485963387,
+        "headingDelta": 0.2155767490824081,
+        "note": "standard mapping emulation; physical controllers not available"
+      }
+    },
+    {
+      "name": "saved settings/progress reload on the same origin and audio stops on menu",
+      "status": "passed",
+      "ms": 758,
+      "evidence": {
+        "sameOrigin": true,
+        "restored": {
+          "carries": 3,
+          "unlocked": 5,
+          "settings": {
+            "quality": "low",
+            "time": "sunset",
+            "weather": "fog",
+            "sound": false,
+            "carryEnabled": true,
+            "controlScale": 1,
+            "controlOpacity": 0.7
+          }
+        }
+      }
+    },
+    {
+      "name": "progress JSON export/import works through visible settings controls",
+      "status": "passed",
+      "ms": 384,
+      "evidence": {
+        "importedCarries": 4,
+        "previousBackupPreserved": true
+      }
+    },
+    {
+      "name": "restart and route caches remain bounded after garbage collection",
+      "status": "passed",
+      "ms": 822,
+      "evidence": {
+        "beforeBytes": 5145596,
+        "afterBytes": 7766836,
+        "growthBytes": 2621240,
+        "cachedRoutes": 10,
+        "note": "20 restarts; bounded short stress test, not a long-session leak proof"
+      }
+    },
+    {
+      "name": "no uncaught JavaScript errors or missing runtime asset responses",
+      "status": "passed",
+      "ms": 0,
+      "evidence": {
+        "pageErrors": [],
+        "failedRequests": []
+      }
+    }
+  ],
+  "errors": [],
+  "failedRequests": [],
+  "summary": {
+    "passed": 17,
+    "failed": 0
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "style": "Illustrated anime 2.5D; original AI-assisted artwork retaining V7 character identity",
+  "riders": {
+    "aurora": {
+      "src": "assets/characters.png",
+      "columns": 4,
+      "rows": 4,
+      "row": 2,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    "lucien": {
+      "src": "assets/characters.png",
+      "columns": 4,
+      "rows": 4,
+      "row": 3,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    "vehicles": {
+      "src": "assets/bikes.png",
+      "columns": 4,
+      "rows": 4
+    },
+    "minh": {
+      "src": "assets/rivals.png",
+      "columns": 4,
+      "rows": 2,
+      "row": 1,
+      "fixedIndex": 4
+    },
+    "nhi": {
+      "src": "assets/rivals.png",
+      "columns": 4,
+      "rows": 2,
+      "row": 1,
+      "fixedIndex": 5
+    },
+    "phong": {
+      "src": "assets/rivals.png",
+      "columns": 4,
+      "rows": 2,
+      "row": 1,
+      "fixedIndex": 6
+    },
+    "rin": {
+      "src": "assets/rivals.png",
+      "columns": 4,
+      "rows": 2,
+      "row": 1,
+      "fixedIndex": 7
+    }
+  },
+  "buildings": {
+    "src": "assets/city-atlas.png",
+    "columns": 4,
+    "rows": 2,
+    "variants": [
+      0,
+      1,
+      2,
+      3,
+      6
+    ]
+  },
+  "trees": {
+    "src": "assets/city-atlas.png",
+    "columns": 4,
+    "rows": 2,
+    "fixedIndex": 4,
+    "frame": 4
+  },
+  "landmarks": {
+    "opera": {
+      "src": "assets/city-atlas.png",
+      "columns": 4,
+      "rows": 2,
+      "fixedIndex": 5
+    },
+    "pavilion": {
+      "src": "assets/city-atlas.png",
+      "columns": 4,
+      "rows": 2,
+      "fixedIndex": 7
+    }
+  },
+  "ui": {
+    "characters": "assets/characters.png",
+    "hero": "assets/hero.png",
+    "carry": "assets/carry.png",
+    "kiss": "assets/kiss.png",
+    "cinema": "assets/cinema-atlas.png",
+    "rivals": "assets/rivals.png",
+    "expressions": "assets/expressions.png",
+    "carryWalk": "assets/carry-walk.png"
+  }
+}

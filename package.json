@@ -1,0 +1,21 @@
+{
+  "name": "hai-phong-grand-prix-v8",
+  "version": "8.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Hải Phòng Grand Prix V8 — illustrated anime street racing",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node scripts/server.mjs",
+    "start": "node scripts/server.mjs",
+    "test": "node --test tests/engine.test.js",
+    "test:browser": "node tests/browser.mjs",
+    "build": "node scripts/build.mjs",
+    "test:maps": "node tests/full-laps.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.58.2"
+  }
+}
