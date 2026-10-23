@@ -1,5 +1,5 @@
-import {sampleTrack,clamp} from './data.js?v=9';
-import {displayName,replaceNames,HEART_BRACELET} from './profile.js?v=9';
+import {sampleTrack,clamp} from './data.js?v=10';
+import {displayName,replaceNames,HEART_BRACELET} from './profile.js?v=10';
 
 const smooth=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const captions=[
@@ -74,7 +74,7 @@ export class CinematicDirector {
   if(stamp!==this.lastCaption){this.lastCaption=stamp;document.getElementById('endingChapter').textContent=line[3];document.getElementById('endingSpeaker').textContent=displayName(this.engine.save,line[1]);document.getElementById('endingText').textContent='“'+replaceNames(line[2],this.engine.save)+'”';}
   document.getElementById('endingPreview').hidden=!e.preview&&!e.replay;
   document.getElementById('endingPreview').textContent=e.preview?'XEM TRƯỚC · KHÔNG CẤP QUÀ':'KỶ NIỆM ĐÃ LƯU · XEM LẠI';
-  document.getElementById('endingNote').textContent=e.preview?'Bản xem trước không thay đổi chiến thắng, xu hoặc kỷ niệm.':t>=15&&t<22?HEART_BRACELET.description:'';
+  document.getElementById('endingNote').textContent=t>=15&&t<22&&!e.preview?HEART_BRACELET.description:'';
   document.getElementById('endingProgress').style.width=`${Math.min(100,t/46*100)}%`;
   document.getElementById('endingComplete').hidden=!e.complete;
   document.getElementById('endingMemoryTitle').textContent=e.preview?'XEM TRƯỚC HOÀN TẤT':`${displayName(this.engine.save,'aurora')} & ${displayName(this.engine.save,'lucien')} · MỘT KỶ NIỆM ĐÃ LƯU`;

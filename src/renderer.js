@@ -1,5 +1,6 @@
-import {SpatialGrid,normalizeQuality} from './performance.js?v=9';
-import {displayName} from './profile.js?v=9';
+import {SpatialGrid,normalizeQuality} from './performance.js?v=10';
+import {renderScale} from './display.js?v=10';
+import {displayName} from './profile.js?v=10';
 /** Hải Phòng Grand Prix V8 — coherent Canvas 2.5D city renderer.
  * World coordinates are the preserved OSM metre coordinates; the camera never
  * changes vehicle physics. Art is billboarded deliberately, like an illustrated
@@ -294,8 +295,10 @@ export class Renderer {
       }
     };
     walk(this.manifest);
+    this.deferredAssets=entries.filter(([key])=>key.startsWith('ending.')||key==='duo');
+    const immediateAssets=entries.filter(([key])=>!key.startsWith('ending.')&&key!=='duo');
     const decodedImages = new Map();
-    await Promise.all(entries.map(async ([key, info]) => {
+    await Promise.all(immediateAssets.map(async ([key, info]) => {
       const src = info.src || info.path || info.url;
       const url = src.startsWith('http') || src.startsWith('data:') || src.startsWith('/') ? src : new URL(src.replace(/^\.\//, ''), base).href;
       if (!decodedImages.has(url)) decodedImages.set(url, loadImage(url));
@@ -312,11 +315,22 @@ export class Renderer {
     return this;
   }
 
+  loadEndingAssets(){
+    if(this._endingLoad)return this._endingLoad;
+    const base=new URL('../',import.meta.url);
+    this._endingLoad=Promise.all((this.deferredAssets||[]).map(async([key,info])=>{
+      const source=info.src||info.path||info.url;
+      const url=source.startsWith('/')||source.startsWith('data:')||source.startsWith('http')?source:new URL(source.replace(/^\.\//,''),base).href;
+      const image=await loadImage(url);
+      if(image)this.assets[key]={...info,image};
+    }));
+    return this._endingLoad;
+  }
+
   resize() {
     const rect = this.canvas.getBoundingClientRect();
     const w = Math.max(1, rect.width || innerWidth), h = Math.max(1, rect.height || innerHeight);
-    const cap = this.quality === 'performance' ? 1 : this.quality === 'ultra' ? 1.5 : 1.2;
-    const dpr = Math.max(.45,Math.min(globalThis.devicePixelRatio || 1, cap)*this.dynamicScale);
+    const dpr=renderScale(w,h,this.quality,globalThis.devicePixelRatio||1,this.dynamicScale);
     if (w !== this.width || h !== this.height || dpr !== this.dpr) {
       this.width = w; this.height = h; this.dpr = dpr;
       this.canvas.width = Math.round(w * dpr); this.canvas.height = Math.round(h * dpr);

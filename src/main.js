@@ -1,11 +1,11 @@
-import {loadData} from './data.js?v=9';
-import {GameEngine,SAVE_KEY,LEGACY_SAVE_KEY} from './engine.js?v=9';
-import {Renderer} from './renderer.js?v=9';
-import {UI} from './ui.js?v=9';
-import {AudioSystem} from './audio.js?v=9';
-import {exportProgress,importProgress} from './progress.js?v=9';
-import {FrameMonitor,AdaptiveResolution} from './performance.js?v=9';
-import {CinematicDirector} from './cinematics.js?v=9';
+import {loadData} from './data.js?v=10';
+import {GameEngine,SAVE_KEY,LEGACY_SAVE_KEY} from './engine.js?v=10';
+import {Renderer} from './renderer.js?v=10';
+import {UI} from './ui.js?v=10';
+import {AudioSystem} from './audio.js?v=10';
+import {exportProgress,importProgress} from './progress.js?v=10';
+import {FrameMonitor,AdaptiveResolution} from './performance.js?v=10';
+import {CinematicDirector} from './cinematics.js?v=10';
 
 const canvas=document.getElementById('game');
 try {
@@ -17,10 +17,10 @@ try {
  const audio=new AudioSystem();audio.setEnabled(engine.save.settings.sound);
  const ui=new UI(engine,data),director=new CinematicDirector(renderer,engine),monitor=new FrameMonitor(),adaptive=new AdaptiveResolution(engine.save.settings.quality);
  ui.onGaragePreview=(index,cosmetics)=>{const c=document.getElementById('garagePreview'),g=c.getContext('2d'),asset=renderer.assets['riders.vehicles'];if(!asset)return;const tile=renderer.cosmeticRider(asset,3,index,cosmetics);g.clearRect(0,0,c.width,c.height);g.drawImage(tile,(c.width-c.height)/2,0,c.height,c.height);};
- ui.setAssets({hero:'./assets/hero.png',characters:'./assets/characters.png',rivals:'./assets/rivals.png',carry:'./assets/carry.png',kiss:'./assets/kiss.png'});
+ ui.setAssets({hero:'./assets/hero.webp',characters:'./assets/characters.webp',rivals:'./assets/rivals.webp',carry:'./assets/carry.webp',kiss:'./assets/kiss.webp'});
  document.getElementById('exportProgress').addEventListener('click',()=>{
-  const url=URL.createObjectURL(new Blob([exportProgress(engine.save)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='duong-den-tinh-yeu-v9-progress.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-  document.getElementById('progressStatus').textContent='Đã xuất bản sao tiến trình V9. Giữ file này khi đổi trình duyệt hoặc địa chỉ chơi.';
+  const url=URL.createObjectURL(new Blob([exportProgress(engine.save)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='duong-den-tinh-yeu-v10-progress.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  document.getElementById('progressStatus').textContent='Đã xuất bản sao tiến trình V10. Giữ file này khi đổi trình duyệt hoặc địa chỉ chơi.';
  });
  document.getElementById('importProgress').addEventListener('change',async event=>{
   const file=event.target.files[0];if(!file)return;
@@ -40,7 +40,7 @@ try {
   previewEnding:()=>{reset();audio.start();engine.previewEnding();},replayEnding:()=>{reset();audio.start();engine.replayEnding();},
   environment:(time,weather)=>engine.setEnvironment(time,weather),camera:()=>{engine.state.cameraMode=(engine.state.cameraMode+1)%3;},sound:enabled=>{audio.setEnabled(enabled);if(enabled)audio.start();},settings:settings=>{engine.setSettings(settings);audio.setEnabled(engine.save.settings.sound);}
  });
- engine.addEventListener('change',event=>{const d=event.detail||{};if(['collision','pickup','carry','finish','skill','ending'].includes(d.type))audio.event(d.type,d.severity);if(['finish','carry','ending'].includes(d.type))reset();});
+ engine.addEventListener('change',event=>{const d=event.detail||{};if(['collision','pickup','carry','finish','skill','ending'].includes(d.type))audio.event(d.type,d.severity);if(d.type==='ending')void renderer.loadEndingAssets();if(['finish','carry','ending'].includes(d.type))reset();});
  const drivingCodes=new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowLeft','ArrowDown','ArrowRight','ShiftLeft','ShiftRight','Space','KeyE']);
  window.addEventListener('keydown',event=>{
   if(event.target.matches('input,select,textarea')||ui.storyPending||document.querySelector('dialog[open]'))return;
@@ -67,7 +67,7 @@ try {
   if(now-lastHUD>70||engine.state.phase!==ui.lastPhase){ui.update(engine.state);lastHUD=now;}
   audio.update(engine.state);metrics.frames++;metrics.frameMs=frameMs;
   if(active)monitor.record(frameMs,{physicsMs:Math.max(0,metrics.updateMs-(engine.metrics?.aiMs||0)),aiMs:engine.metrics?.aiMs||0,renderMs:metrics.renderMs,drawCount:renderer.stats.visibleObjects,heapBytes:performance.memory?.usedJSHeapSize});
-  if(now-lastPerf>500){const stats=monitor.snapshot();metrics.fps=stats.fps;const hud=document.getElementById('performanceHUD');hud.hidden=!engine.save.settings.showPerformance;if(!hud.hidden)hud.textContent=`${stats.fps.toFixed(1)} FPS · min ${stats.minimumFPS.toFixed(1)} · P95 ${stats.p95FrameMs.toFixed(1)}ms\nVật lý ${stats.physicsMs.toFixed(2)} · AI ${stats.aiMs.toFixed(2)} · Vẽ ${stats.renderMs.toFixed(2)}ms\n${stats.drawCount} đối tượng · ${Math.round(renderer.dynamicScale*100)}% độ phân giải${stats.heapBytes?' · '+(stats.heapBytes/1048576).toFixed(0)+' MB':''}`;lastPerf=now;}
+  if(now-lastPerf>500){const stats=monitor.snapshot();metrics.fps=stats.fps;const hud=document.getElementById('performanceHUD');hud.hidden=!engine.save.settings.showPerformance;if(!hud.hidden)hud.textContent=`${stats.fps.toFixed(1)} FPS · min ${stats.minimumFPS.toFixed(1)} · P95 ${stats.p95FrameMs.toFixed(1)}ms\nVật lý ${stats.physicsMs.toFixed(2)} · AI ${stats.aiMs.toFixed(2)} · Vẽ ${stats.renderMs.toFixed(2)}ms\n${stats.drawCount} đối tượng · ${renderer.canvas.width}×${renderer.canvas.height} px${stats.heapBytes?' · '+(stats.heapBytes/1048576).toFixed(0)+' MB':''}`;lastPerf=now;}
   requestAnimationFrame(frame);
  };
  ui.update(engine.state);requestAnimationFrame(frame);

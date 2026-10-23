@@ -2,7 +2,7 @@
   "style": "Illustrated anime 2.5D; original AI-assisted artwork retaining V7 character identity",
   "riders": {
     "aurora": {
-      "src": "assets/characters.png",
+      "src": "assets/characters.webp",
       "columns": 4,
       "rows": 4,
       "row": 2,
@@ -14,7 +14,7 @@
       ]
     },
     "lucien": {
-      "src": "assets/characters.png",
+      "src": "assets/characters.webp",
       "columns": 4,
       "rows": 4,
       "row": 3,
@@ -26,33 +26,33 @@
       ]
     },
     "vehicles": {
-      "src": "assets/bikes.png",
+      "src": "assets/bikes.webp",
       "columns": 4,
       "rows": 4
     },
     "minh": {
-      "src": "assets/rivals.png",
+      "src": "assets/rivals.webp",
       "columns": 4,
       "rows": 2,
       "row": 1,
       "fixedIndex": 4
     },
     "nhi": {
-      "src": "assets/rivals.png",
+      "src": "assets/rivals.webp",
       "columns": 4,
       "rows": 2,
       "row": 1,
       "fixedIndex": 5
     },
     "phong": {
-      "src": "assets/rivals.png",
+      "src": "assets/rivals.webp",
       "columns": 4,
       "rows": 2,
       "row": 1,
       "fixedIndex": 6
     },
     "rin": {
-      "src": "assets/rivals.png",
+      "src": "assets/rivals.webp",
       "columns": 4,
       "rows": 2,
       "row": 1,
@@ -60,7 +60,7 @@
     }
   },
   "buildings": {
-    "src": "assets/city-atlas.png",
+    "src": "assets/city-atlas.webp",
     "columns": 4,
     "rows": 2,
     "variants": [
@@ -72,7 +72,7 @@
     ]
   },
   "trees": {
-    "src": "assets/city-atlas.png",
+    "src": "assets/city-atlas.webp",
     "columns": 4,
     "rows": 2,
     "fixedIndex": 4,
@@ -80,49 +80,49 @@
   },
   "landmarks": {
     "opera": {
-      "src": "assets/city-atlas.png",
+      "src": "assets/city-atlas.webp",
       "columns": 4,
       "rows": 2,
       "fixedIndex": 5
     },
     "pavilion": {
-      "src": "assets/city-atlas.png",
+      "src": "assets/city-atlas.webp",
       "columns": 4,
       "rows": 2,
       "fixedIndex": 7
     }
   },
   "ui": {
-    "characters": "assets/characters.png",
-    "hero": "assets/hero.png",
-    "carry": "assets/carry.png",
-    "kiss": "assets/kiss.png",
-    "cinema": "assets/cinema-atlas.png",
-    "rivals": "assets/rivals.png",
-    "expressions": "assets/expressions.png",
-    "carryWalk": "assets/carry-walk.png"
+    "characters": "assets/characters.webp",
+    "hero": "assets/hero.webp",
+    "carry": "assets/carry.webp",
+    "kiss": "assets/kiss.webp",
+    "cinema": "assets/cinema-atlas.webp",
+    "rivals": "assets/rivals.webp",
+    "expressions": "assets/expressions.webp",
+    "carryWalk": "assets/carry-walk.webp"
   },
   "duo": {
-    "src": "assets/v9-duo.png",
+    "src": "assets/v9-duo.webp",
     "columns": 3,
     "rows": 1
   },
   "districts": {
-    "src": "assets/v9-districts.png",
+    "src": "assets/v9-districts.webp",
     "columns": 4,
     "rows": 2
   },
   "ending": {
     "poses": {
-      "src": "assets/v9-ending-poses.png",
+      "src": "assets/v9-ending-poses.webp",
       "columns": 4,
       "rows": 2
     },
     "gift": {
-      "src": "assets/v9-gift.png",
+      "src": "assets/secret-ending.webp",
       "columns": 2,
       "rows": 1
     },
-    "dinner": "assets/v9-dinner.png"
+    "dinner": "assets/v9-dinner.webp"
   }
 }

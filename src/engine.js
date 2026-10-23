@@ -1,5 +1,5 @@
-import {clamp, angleDiff, modulo, sampleTrack, nearestPoint, sampleBranch, nearestBranch} from './data.js?v=9';
-import {normalizeProfile,normalizeSettings,sanitizeName,tunedVehicle,upgradeVehicle as buyUpgrade,setCosmetics as changeCosmetics,HEART_BRACELET} from './profile.js?v=9';
+import {clamp, angleDiff, modulo, sampleTrack, nearestPoint, sampleBranch, nearestBranch} from './data.js?v=10';
+import {normalizeProfile,normalizeSettings,sanitizeName,tunedVehicle,upgradeVehicle as buyUpgrade,setCosmetics as changeCosmetics,HEART_BRACELET} from './profile.js?v=10';
 
 export const SAVE_KEY = 'hpmoto.v9.save';
 export const LEGACY_SAVE_KEY = 'hpmoto.v8.save';
@@ -145,6 +145,7 @@ export class GameEngine extends EventTarget {
       const mainIndices=state.checkpoints.filter(cp=>cp.progress>Math.max(branch.entry,forkProgress)+.5&&cp.progress<=branch.exit+1&&cp.index!==0).map(cp=>cp.index);
       if(mainIndices.length)state.branches.push({...branch,mainIndices,gates});
     }
+    if(config.mode==='story'){state.player.nitro=config.level===0?38:22;state.storyBeatsShown=[];}
     const intro=config.mode==='story'&&config.level===0;
     if(intro)state.obstacles=state.obstacles.filter((o,i)=>i%3===0&&o.type==='cone');
     return state;
@@ -226,7 +227,8 @@ export class GameEngine extends EventTarget {
     p.weightTransfer+=(brake*.13-p.throttle*.035-p.weightTransfer)*Math.min(1,dt*9);
     const wetGrip=s.environment.weather==='rain'?.73:1;
     const wasDrifting=p.drifting;
-    p.drifting=Boolean(input.drift)&&Math.abs(p.steer)>.2&&p.speed>bike.driftMinSpeed&&(brake>.08||wasDrifting);
+    // A story-only accessible drift: no simultaneous brake required. Steering is still fully manual.
+    p.drifting=Boolean(input.drift)&&Math.abs(p.steer)>.2&&p.speed>(s.config.mode==='story'?Math.min(bike.driftMinSpeed,6):bike.driftMinSpeed)&&(s.config.mode==='story'||brake>.08||wasDrifting);
     p.slip+=( (p.drifting?p.steer*.28/(bike.driftGrip*bike.stability):0)-p.slip)*(1-Math.exp(-dt*(p.drifting?4:8)));
     p.comboTimer=Math.max(0,p.comboTimer-dt);if(!p.comboTimer&&!p.drifting)p.combo=0;
     if(p.drifting){p.driftTime+=dt;p.driftCharge+=dt*(8+p.speed*.22);s.stats.driftSeconds+=dt;}
@@ -275,6 +277,7 @@ export class GameEngine extends EventTarget {
     this._crossCheckpoint(oldX, oldY, p.x, p.y);
     if (s.phase !== 'race') return;
     p.totalProgress = (p.lap - 1) * s.track.length + p.progress;
+    this._storyBeat();
     s.stats.distanceDriven += Math.hypot(p.x - oldX, p.y - oldY);
     this._worldCollisions(oldX, oldY);
     if (s.phase !== 'race') return;
@@ -316,6 +319,22 @@ export class GameEngine extends EventTarget {
     }
     s.checkpointIndex = (s.checkpointIndex + 1) % s.checkpoints.length;
     this._emit('checkpoint', {index: cp.index, lap: p.lap}); return true;
+  }
+
+  _storyBeat(){
+    const s=this.state;if(s.config.mode!=='story'||s.phase!=='race')return;
+    const bits=[
+      ['Lucien: Anh đang đợi ở phía trước, bình tĩnh nhé ♡','Aurora: Rẽ chuẩn một góc nữa thôi!','Lucien: Sắp tới rồi, em giỏi lắm!'],
+      ['Nhi: Có người lén gửi hoa cho cậu đó!','Aurora: Gió hôm nay thơm quá!','Lucien: Đường đẹp nhưng đừng quên nhìn hướng nhé!'],
+      ['Phong: Bình tĩnh trước những con phố nhỏ nhé!','Lucien: Anh biết em sẽ tìm được đường mà.','Aurora: Chuyến này nhiều chuyện để kể ghê!'],
+      ['Rin: Nhớ để dành chút Nitro đó!','Lucien: Hoàng hôn đẹp thật, phải không?','Aurora: Sắp đến lời hẹn của tụi mình rồi!'],
+      ['Lucien: Đua hết mình nhé!','Aurora: Hẹn nhau ở vạch đích!','Lucien: Anh tin em sẽ làm được.']
+    ];
+    const progress=Math.max(0,Math.min(1,s.player.progress/s.track.length));
+    const at=[.12,.46,.78];
+    for(let i=0;i<3;i++)if(progress>=at[i]&&!s.storyBeatsShown.includes(i)){
+      s.storyBeatsShown.push(i);this._emit('storyBeat',{text:bits[s.config.level][i],index:i,level:s.config.level});
+    }
   }
 
   _worldCollisions(oldX, oldY) {

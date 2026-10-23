@@ -1,4 +1,4 @@
-import {displayName,replaceNames,tunedVehicle,upgradeCost,UPGRADE_KINDS} from './profile.js?v=9';
+import {displayName,replaceNames,tunedVehicle,upgradeCost,UPGRADE_KINDS} from './profile.js?v=10';
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const names = {aurora:'Aurora',lucien:'Lucien',minh:'Minh',nhi:'Nhi',phong:'Phong',rin:'Rin'};
@@ -13,7 +13,7 @@ export class UI {
     this.actions = {};
     this.input = {throttle:0, brake:0, steer:0, tuck:false};
     this.touchPressed = new Set();
-    this.mode = 'custom';
+    this.mode = 'story';
     this.vehicle = 0;
     this.track = 0;
     this.level = 0;
@@ -25,7 +25,7 @@ export class UI {
     this.mapLast = 0;
     this.toastUntil = 0;
     this.settingsAutoPaused = false;
-    this.assets = {hero:'./assets/hero.png',characters:'./assets/characters.png',rivals:'./assets/rivals.png',carry:'./assets/carry.png',kiss:'./assets/kiss.png'};
+    this.assets = {hero:'./assets/hero.webp',characters:'./assets/characters.webp',rivals:'./assets/rivals.webp',carry:'./assets/carry.webp',kiss:'./assets/kiss.webp'};
     this.renderVehicles();
     this.renderRoutes();
     this.syncSettings();
@@ -34,10 +34,11 @@ export class UI {
       if (event.detail?.type === 'toast' && event.detail.text) this.toast(event.detail.text);
       if (event.detail?.type === 'pickup') this.toast('Một món quà nhỏ từ thành phố ♡');
       if (['skill','chase'].includes(event.detail?.type)) this.toast(this.text(event.detail.text),1800);
+      if (event.detail?.type==='storyBeat') this.toast(this.text(event.detail.text),4400);
       if(event.detail?.type==='profile'){this.refreshNames();if($('garageDialog').open)this.renderGarage();}
     });
     $('loading').hidden = true;
-    this._bindV9();this.refreshNames();this.showMenu();
+    this._bindV9();this.refreshNames();this.showMenu();this.setMode('story');this.vehicle=2;this.renderVehicles();this.updateSelection();
   }
 
   bind(actions = {}) { this.actions = actions; return this; }
@@ -47,7 +48,7 @@ export class UI {
     $('heroArt').src = this.assets.hero;
     $('auroraAvatar').style.backgroundImage = `url("${this.assets.characters}")`;
     if (!this.storyPending) $('storyPortrait').style.backgroundImage = `url("${this.assets.characters}")`;
-    $('auroraAvatar').style.backgroundImage = 'url("./assets/expressions.png")';
+    $('auroraAvatar').style.backgroundImage = 'url("./assets/expressions.webp")';
     $('auroraAvatar').style.backgroundSize = '800% 400%';
     $('auroraAvatar').style.backgroundPosition = '0% 25.3%';
     return this;
@@ -89,8 +90,8 @@ export class UI {
       this.applySettings({sound:event.target.checked}); this._act('sound', event.target.checked);
     });
     $('helpButton').addEventListener('click', () => this._openDialog('helpDialog'));
-    $('closeHelp').addEventListener('click', () => this._closeDialog('helpDialog'));
-    $('readyButton').addEventListener('click', () => this._closeDialog('helpDialog'));
+    $('closeHelp').addEventListener('click', () => {this.tutorialConfig=null;this._closeDialog('helpDialog');});
+    $('readyButton').addEventListener('click', () => {this._closeDialog('helpDialog');if(this.tutorialConfig){const config=this.tutorialConfig;this.tutorialConfig=null;this.engine.save.seenTutorial=true;this.engine.persist();this._act('start',config);}});
     $('pauseButton').addEventListener('click', () => this._act('pause'));
     $('resumeButton').addEventListener('click', () => {this._closeDialog('pauseDialog'); this._act('resume');});
     $('restartButton').addEventListener('click', () => {this.closeDialogs(); this._act('restart');});
@@ -98,7 +99,7 @@ export class UI {
     for (const id of ['menuButton','resultMenuButton']) $(id).addEventListener('click', () => {this.closeDialogs(); this.storyPending = null; this._act('menu'); this.showMenu();});
     $('rescueButton').addEventListener('click', () => this._act('rescue'));
     $('cameraButton').addEventListener('click', () => this._act('camera'));
-    $('previewButton').addEventListener('click', () => this.preview(false));
+    $('previewButton').addEventListener('click', () => {this.level=Math.min(4,Math.max(0,this.engine.save.unlocked-1));this.setMode('story');this.startSelected();});
     $('previewCarrySettings').addEventListener('click', () => this.preview(false));
     $('previewKissSettings').addEventListener('click', () => this.preview(true));
     $('skipCinema').addEventListener('click', () => this._act('skipCutscene'));
@@ -134,6 +135,7 @@ export class UI {
         event.preventDefault();
         if (dialog.id === 'settingsDialog') this.closeSettings();
         else if (dialog.id === 'pauseDialog') {this._closeDialog('pauseDialog');this._act('resume');}
+        else if (dialog.id === 'helpDialog') {this.tutorialConfig=null;this._closeDialog(dialog.id);}
         else this._closeDialog(dialog.id);
       });
     }
@@ -162,7 +164,7 @@ export class UI {
     $('soundButton').textContent = settings.sound === false ? '♪' : '♫';
     $('soundButton').setAttribute('aria-label', settings.sound === false ? 'Bật âm thanh' : 'Tắt âm thanh');
     const low = navigator.hardwareConcurrency <= 4 || (navigator.deviceMemory && navigator.deviceMemory <= 4);
-    $('qualityRecommendation').textContent = low ? 'Gợi ý: Performance để ưu tiên độ mượt trên thiết bị này.' : 'Balanced tự điều chỉnh theo thời gian khung hình thực tế.';
+    $('qualityRecommendation').textContent = low ? 'Gợi ý: Performance giảm hiệu ứng nhưng vẫn giữ khung hình kết xuất 720p khi hỗ trợ.' : '720p tối thiểu · Balanced tự cân đối chi tiết theo FPS thực tế.';
   }
 
   applySettings(settings) {this._act('settings', settings);this.syncSettings();}
@@ -215,7 +217,7 @@ export class UI {
     $('selectedRouteInfo').textContent = `${(track.length/1000).toFixed(2)} km · ${(track.streetNames || []).slice(0,3).join(' → ')} · ${this.data.vehicles[this.vehicle].name}`;
     $('startButton').innerHTML = this.mode === 'story' ? `BẮT ĐẦU CHƯƠNG ${String(this.level+1).padStart(2,'0')} <span class="arrow-ne" aria-hidden="true"></span>` : 'LÊN XE, ĐI THÔI <span class="arrow-ne" aria-hidden="true"></span>';
     const won = Object.values(this.engine.save?.wins || {}).filter(Boolean).length;
-    $('saveStatus').textContent = won ? `${won} / 5 chặng đã thắng · Những lời hẹn đang tiếp nối.` : 'Một hành trình mới bắt đầu.';
+    $('saveStatus').textContent = won ? `${won} / 5 tấm bưu thiếp đã mở · Cùng khám phá tiếp nhé.` : 'Một hành trình mới bắt đầu. Chọn cốt truyện để nhận bưu thiếp.';
   }
 
   selectionConfig() {
@@ -244,7 +246,7 @@ export class UI {
     const portrait = $('storyPortrait');
     portrait.className = 'character-portrait';
     if (id === 'aurora' || id === 'lucien') {
-      portrait.style.backgroundImage = 'url("./assets/expressions.png")';
+      portrait.style.backgroundImage = 'url("./assets/expressions.webp")';
       portrait.style.backgroundSize = '800% 400%';
       const face = id === 'aurora' ? (this.storyIndex % 3 === 0 ? 0 : 1) : (this.storyIndex % 3 === 0 ? 4 : 1);
       portrait.style.backgroundPosition = `${face*100/7}% ${id === 'aurora' ? 25.3 : 69.9}%`;
@@ -261,7 +263,7 @@ export class UI {
     $('nextStory').innerHTML = this.storyIndex === lines.length-1 ? 'VÀO ĐƯỜNG ĐUA <span class="arrow-ne" aria-hidden="true"></span>' : 'TIẾP TỤC <span>→</span>';
   }
   nextStory() {if (!this.storyPending) return;const lines = this.data.story[this.storyPending.level];if (this.storyIndex < lines.length-1) {this.storyIndex++;this.showStoryLine();} else this.finishStory();}
-  finishStory() {if (!this.storyPending) return;const config = this.storyPending;this.storyPending = null;$('storyScreen').hidden = true;this._act('start', config);}
+  finishStory() {if (!this.storyPending) return;const config = this.storyPending;this.storyPending = null;$('storyScreen').hidden = true;if(!this.engine.save.seenTutorial&&!this.engine.save.wins?.[0]){this.tutorialConfig=config;this._openDialog('helpDialog');}else this._act('start',config);}
 
   preview(kiss = false) {this.closeDialogs();this.storyPending = null;$('storyScreen').hidden = true;this.resetInput();this._act('preview', kiss);}
 
@@ -361,11 +363,11 @@ export class UI {
     $('cinemaScreen').classList.toggle('pose-scene', !illustrated);
     let tile = elapsed < 1.4 ? 0 : elapsed < 2.2 ? 2 : elapsed < 3 ? 3 : elapsed < 4.5 ? 4 + (Math.floor(elapsed * 5) % 2) : elapsed < 5.5 ? 6 : scene.kiss ? 7 : 4 + (Math.floor(elapsed * 5) % 2);
     if(elapsed >= 3 && !illustrated) {
-      pose.style.backgroundImage='url("./assets/carry-walk.png")';
+      pose.style.backgroundImage='url("./assets/carry-walk.webp")';
       pose.style.backgroundSize='200% 100%';
       pose.style.backgroundPosition=`${Math.floor(elapsed*4)%2?100:0}% 0%`;
     } else {
-      pose.style.backgroundImage='url("./assets/cinema-atlas.png")';
+      pose.style.backgroundImage='url("./assets/cinema-atlas.webp")';
       pose.style.backgroundSize='400% 200%';
       pose.style.backgroundPosition = `${(tile % 4) * 100 / 3}% ${tile >= 4 ? 100 : 0}%`;
     }
@@ -399,7 +401,7 @@ export class UI {
     $('resultTitle').textContent = result.won ? 'Gió cũng chạy theo bạn.' : 'Một vòng phố, thêm một kỷ niệm.';
     $('resultDescription').textContent = result.won ? (story ? 'Một chương mới đã mở. Có người đang đợi bạn ở góc phố tiếp theo.' : 'Bạn đã hoàn thành đúng thứ tự checkpoint và về đích đầu tiên.') : 'Bạn đã đi hết đường đua. Bình tĩnh ở góc cua tiếp theo, mình thử lại nhé.';
     $('resultDescription').textContent += ` +${result.coins||0} xu · Drift ${Math.round(state.stats.driftSeconds||0)} giây.`;
-    if(story&&result.won)$('resultDescription').textContent += this.text(state.config.level===4?' Lucien: “Nhà vô địch của anh, hẹn em ở chuyến đi tiếp theo.”':' Aurora: “Một chặng nữa rồi! Hẹn ở góc phố tiếp theo nhé.”');
+    if(story&&result.won)$('resultDescription').textContent += this.text(state.config.level===4?' Một bất ngờ đang chờ được mở.':' Một tấm bưu thiếp mới đã được lưu vào Album kỷ niệm ♡');
     $('resultTitle').textContent=this.text(result.won?'Aurora, gió cũng chạy theo em.':'Một vòng phố, thêm một kỷ niệm.');
     $('resultPosition').textContent = `${result.position || state.rank || 1} / ${(state.rivals?.length || 1)+1}`;
     $('resultTime').textContent = timeText(result.time);
@@ -407,6 +409,7 @@ export class UI {
     $('continueCarryButton').hidden = true;
     $('nextChapterButton').hidden = !(story && result.won && state.config.level < 4);
     $('resultRestartButton').hidden = false;
+    this.showPostRaceChoice(state);
     this._openDialog('resultDialog');
   }
 
@@ -461,8 +464,7 @@ export class UI {
     $('upgradeChoices').onclick=event=>{const b=event.target.closest('[data-upgrade]');if(!b)return;const result=this.engine.upgradeVehicle(this.data.vehicles[this.garageVehicle].id,b.dataset.upgrade);$('garageFeedback').textContent=result.ok?'Đã nâng cấp. Xe đã sẵn sàng cho cuộc đua tiếp theo.':result.reason==='insufficient-coins'?'Chưa đủ xu. Hoàn thành cuộc đua hoặc Drift để tích thêm.':'Hạng mục đã đạt cấp tối đa.';this.renderGarage();};
     for(const key of ['paint','helmet','jacket','gloves','accessory'])$(key+'Select').onchange=event=>{this.engine.setCosmetics({[key]:event.target.value});this.renderGarage();};
     $('memoriesButton').onclick=()=>{this.renderMemories();this._openDialog('memoriesDialog');};$('closeMemories').onclick=()=>this._closeDialog('memoriesDialog');
-    $('previewEndingButton').onclick=()=>{this.closeDialogs();this.storyPending=null;this._act('previewEnding');};
-    $('replayEnding').onclick=()=>{this.closeDialogs();this._act('replayEnding');};
+    $('replayEnding').onclick=()=>{if(!this.engine.save.endingUnlocked)return;this.closeDialogs();this._act('replayEnding');};
     $('autoQualityToggle').onchange=event=>this.applySettings({autoQuality:event.target.checked});$('shakeToggle').onchange=event=>this.applySettings({cameraShake:event.target.checked?.45:0});$('performanceToggle').onchange=event=>this.applySettings({showPerformance:event.target.checked});
     for(const id of ['fullscreenMenu','fullscreenButton'])$(id).onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{this.toast('Trình duyệt này chưa cho phép toàn màn hình.');}};
   }
@@ -476,7 +478,37 @@ export class UI {
     this.onGaragePreview?.(index,this.engine.save.garage.cosmetics);
     for(const [key,value] of Object.entries(this.engine.save.garage.cosmetics)){const select=$(key+'Select');if(select)select.value=value;}
   }
+  showPostRaceChoice(state){
+    const panel=$('postRaceChoice'),level=state.config.level;
+    const show=state.config.mode==='story'&&state.result?.won&&level<4;
+    panel.hidden=!show;if(!show)return;
+    const prompts=['Gặp nhau rồi, em nhắn gì cho anh?', 'Sau vườn hoa, em muốn nói gì?', 'Vượt phố cổ rồi, nhắn một câu nhé!', 'Chỉ còn chặng cuối, em muốn nhắn gì?'];
+    const options=[
+      ['Em tới rồi, anh đừng lo nhé! ♡','Đố anh bắt kịp em đấy! 😝'],
+      ['Có anh cổ vũ là em tự tin hơn.','Thắng rồi, trà sữa anh bao nhé!'],
+      ['Đường vòng nào cũng dẫn về anh.','Anh thấy em lái đỉnh chưa?'],
+      ['Lần tới, mình đi chung xe nhé.','Chương cuối anh phải đua hết sức đó!']
+    ];
+    $('postRacePrompt').textContent=prompts[level];
+    const value=this.engine.save.loveChoices?.[level];
+    $('postRaceOptions').innerHTML=options[level].map((t,i)=>`<button type="button" data-love-choice="${i}" class="${i===value?'selected':''}" aria-pressed="${i===value}">${escapeHTML(t)}</button>`).join('');
+    $('postRaceFeedback').textContent=Number.isInteger(value)?'Đã lưu lời nhắn vào Album kỷ niệm.':'Hãy chọn một câu bạn thích — hoàn toàn tùy bạn.';
+    $('postRaceOptions').onclick=event=>{
+      const button=event.target.closest('[data-love-choice]');if(!button)return;
+      const chosen=Number(button.dataset.loveChoice);
+      this.engine.save.loveChoices??={};this.engine.save.loveChoices[level]=chosen;this.engine.persist();
+      for(const item of $('postRaceOptions').querySelectorAll('button')){const selected=Number(item.dataset.loveChoice)===chosen;item.classList.toggle('selected',selected);item.setAttribute('aria-pressed',String(selected));}
+      $('postRaceFeedback').textContent=this.text(`Đã lưu lời nhắn. ${displayName(this.engine.save,'lucien')} sẽ rất vui ♡`);
+    };
+  }
   renderMemories(){
+    const titles=['Buổi hẹn bên hồ','Một nhành hoa nhỏ','Lối tắt của chúng mình','Hẹn nhau lúc hoàng hôn','Lời hẹn cuối cùng'];
+    const lines=['Cứ đi từ từ thôi, anh ở đây.','Có một người luôn cổ vũ em.','Lạc đường cũng được, miễn là đừng lạc nhau.','Đến đây rồi, còn một cuộc hẹn nữa.','Một hành trình đáng nhớ của hai người.'];
+    const options=[['Em tới rồi, anh đừng lo nhé! ♡','Đố anh bắt kịp em đấy! 😝'],['Có anh cổ vũ là em tự tin hơn.','Thắng rồi, trà sữa anh bao nhé!'],['Đường vòng nào cũng dẫn về anh.','Anh thấy em lái đỉnh chưa?'],['Lần tới, mình đi chung xe nhé.','Chương cuối anh phải đua hết sức đó!']];
+    $('memoryChapters').innerHTML=titles.map((title,i)=>{
+      const unlocked=!!this.engine.save.wins?.[i],chosen=this.engine.save.loveChoices?.[i],message=options[i]?.[chosen];
+      return `<article class="memory-card ${unlocked?'':'is-locked'}"><span class="memory-number">${String(i+1).padStart(2,'0')} · ${unlocked?'ĐÃ MỞ':'CHƯA MỞ'}</span><span class="memory-emoji" aria-hidden="true">${unlocked?['🌷','🌻','💌','🌆','✨'][i]:'🔒'}</span><h3>${escapeHTML(unlocked?title:'Bưu thiếp bí mật')}</h3><p>${escapeHTML(unlocked?lines[i]:'Hoàn thành chương này để mở kỷ niệm.')}</p>${message&&unlocked?`<small>✉ ${escapeHTML(this.text(message))}</small>`:''}</article>`;
+    }).join('');
     const memory=this.engine.save.memories.heart_bracelet,unlocked=this.engine.save.endingUnlocked&&!!memory;$('memoryGift').hidden=!unlocked;$('memoryLocked').hidden=unlocked;$('replayEnding').disabled=!unlocked;
     if(unlocked){$('memoryGiftName').textContent=memory.title;$('memoryGiftDescription').textContent=this.text(memory.description);const date=new Date(memory.receivedAt);$('memoryGiftDate').textContent=`${displayName(this.engine.save,'aurora')} & ${displayName(this.engine.save,'lucien')} · ${Number.isNaN(+date)?'Đã lưu':date.toLocaleDateString('vi-VN')}`;}
     this.refreshNames();

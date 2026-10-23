@@ -1,3 +1,13 @@
+# Đường Đến Tình Yêu V10
+
+**[Bấm để chơi V10 ngay](https://khai293.github.io/dua-xe/?v=10)**
+
+Bản web hiện tại được triển khai từ file `Duong_Den_Tinh_Yeu_V10_Web.zip` đã cung cấp. Đã kiểm tra khởi động, vào đua và điều khiển xe trong Chromium.
+
+---
+
+## Tài liệu phiên bản V9 trước đó
+
 # Đường Đến Tình Yêu V9
 
 **Ultimate Racing & Love Story** — game đua xe anime 2.5D qua các cung đường Hải Phòng.

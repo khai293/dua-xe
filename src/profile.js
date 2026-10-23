@@ -18,7 +18,7 @@ export const DEFAULT_COSMETICS = Object.freeze({paint: 'original', helmet: 'clas
 export const HEART_BRACELET = Object.freeze({
   id: 'heart_bracelet', title: 'Vòng tay trái tim',
   description: 'Món quà cho nhà vô địch: một trái tim nhỏ nhắc nhớ hành trình hai người cùng đi.',
-  asset: 'assets/v9-gift.png'
+  asset: 'assets/secret-ending.webp'
 });
 export const defaultV9Settings = Object.freeze({
   quality: 'balanced', time: 'day', weather: 'clear', sound: true, carryEnabled: true,
@@ -109,7 +109,7 @@ export function normalizeProfile(raw = {}) {
     characterNames: {aurora: sanitizeName(source.characterNames?.aurora, 'Aurora'), lucien: sanitizeName(source.characterNames?.lucien, 'Lucien')},
     coins: integer(source.coins),
     garage: {...garage, upgrades, cosmetics: normalizeCosmetics(garage.cosmetics)},
-    memories, endingUnlocked, settings: normalizeSettings(source.settings)};
+    memories, endingUnlocked, seenTutorial: source.seenTutorial===true, loveChoices: Object.fromEntries(Object.entries(object(source.loveChoices)).filter(([key,value]) => /^[0-3]$/.test(key) && Number.isInteger(value) && value >= 0 && value <= 1)), settings: normalizeSettings(source.settings)};
 }
 
 /** The next upgrade price; zero means already at maximum. Kinds are validated separately. */
