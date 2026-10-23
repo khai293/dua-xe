@@ -46,3 +46,7 @@ Lớp gần có curb, vạch, mặt đường, vỉa hè và đạo cụ; lớp 
 Các PNG mới được tạo bằng công cụ tạo ảnh trong phiên làm việc, dựa trên nhận diện từ ảnh trong file V7 do người dùng cung cấp. Asset được gắn thật vào renderer/UI qua `assets/manifest.json`. Không có ảnh tải từ nguồn chưa xác định hoặc phụ thuộc CDN lúc chơi.
 
 OSM nằm trong `haiphong-osm.json`: giữ attribution, URL nguồn và metadata của dữ liệu V7. Không tuyên bố dữ liệu mới được truy vấn lại. Dữ liệu OSM theo ODbL 1.0: https://opendatacommons.org/licenses/odbl/1-0/ ; attribution: https://www.openstreetmap.org/copyright .
+
+## V9 additions
+
+Five new, integrated illustrated assets retain Aurora's long brown hair, daisies, glasses, navy blouse and ivory shorts, and Lucien's black hair/olive overshirt. `v9-ending-poses.png` is a 4×2 transparent atlas (victory, clap, offer/open gift, two walking and two dining poses); `v9-duo.png` is 3×1, Lucien in front with Aurora behind facing the same way. `v9-gift.png` is a closed/open box pair, `v9-dinner.png` the night restaurant plate, and `v9-districts.png` a 4×2 district atlas used during racing. These are AI-assisted original illustrations created for this project; not photographs or claims of real architectural replicas. V9 cosmetics tint material regions and add small illustrated helmet/accessory details without replacing faces or long hair. Cached sprite variants are bounded to twelve entries.

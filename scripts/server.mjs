@@ -17,4 +17,4 @@ http.createServer(async(req,res)=>{
   res.writeHead(200,{'Content-Type':mime[path.extname(file)]||'application/octet-stream','Content-Length':bytes.length,'Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'});
   res.end(req.method==='HEAD'?undefined:bytes);
  }catch{res.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'});res.end('Không tìm thấy tài nguyên.');}
-}).listen(port,host,()=>console.log(`Hải Phòng Grand Prix V8 server listening on port ${port}`));
+}).listen(port,host,()=>console.log(`Đường Đến Tình Yêu V9 server listening on port ${port}`));

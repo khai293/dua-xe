@@ -1,3 +1,5 @@
+import {SpatialGrid,normalizeQuality} from './performance.js?v=9';
+import {displayName} from './profile.js?v=9';
 /** Hải Phòng Grand Prix V8 — coherent Canvas 2.5D city renderer.
  * World coordinates are the preserved OSM metre coordinates; the camera never
  * changes vehicle physics. Art is billboarded deliberately, like an illustrated
@@ -257,7 +259,8 @@ function loadImage(src) {
 export class Renderer {
   constructor(target, data) {
     this.canvas = target; this.ctx = target.getContext('2d', { alpha: false }); this.data = data;
-    this.quality = 'high'; this.time = 0; this.width = 0; this.height = 0; this.dpr = 1;
+    this.dynamicScale=1;this.detail=1;this.mipCache=new WeakMap();this._nearProps=[];this._nearRoads=[];this._nearSamples=[];this.particles=Array.from({length:80},()=>({life:0}));this.particleCursor=0;this.particleClock=0;
+    this.quality = 'balanced'; this.time = 0; this.width = 0; this.height = 0; this.dpr = 1;
     this.assets = {}; this.manifest = {}; this.routeCache = new Map(); this.camera = null;
     this.stats = { fps: 0, frameMs: 0, visibleObjects: 0, quality: 'high' };
     this._fpsTime = 0; this._fpsFrames = 0; this._drawObjects = [];
@@ -268,12 +271,17 @@ export class Renderer {
     this.obstacleArt = { cone: makeObstacle('cone'), crate: makeObstacle('crate'), barrier: makeObstacle('barrier') };
     this.clouds = Array.from({ length: 8 }, (_, i) => ({ x: hash(i * 8) * 1.4 - .2, y: .08 + hash(i * 7) * .17, w: 70 + hash(i * 6) * 180 }));
     for (let i = 0; i < 10; i++) this.spectators.push(makeSpectator(i));
+    this.roadGrid=new SpatialGrid(96);
+    for(const road of data.geo.roads||[]){if(road.width<5||['footway','path','steps'].includes(road.kind))continue;
+      for(let i=1;i<road.points.length;i++){const a=road.points[i-1],b=road.points[i],len=Math.hypot(a[0]-b[0],a[1]-b[1]),count=Math.max(1,Math.ceil(len/36));
+        for(let j=0;j<count;j++){const p=[a[0]+(b[0]-a[0])*j/count,a[1]+(b[1]-a[1])*j/count],q=[a[0]+(b[0]-a[0])*(j+1)/count,a[1]+(b[1]-a[1])*(j+1)/count];this.roadGrid.insert({a:p,b:q,width:road.width,x:(p[0]+q[0])/2,y:(p[1]+q[1])/2});}}
+    }
     this.resize();
   }
 
   async load() {
     try {
-      const res = await fetch(new URL('../assets/manifest.json', import.meta.url));
+      const res = await fetch(new URL('../assets/manifest.json', import.meta.url),{cache:'no-cache'});
       if (res.ok) this.manifest = await res.json();
     } catch { /* Authored fallback city remains available if an optional art fails. */ }
     const base = new URL('../', import.meta.url);
@@ -307,8 +315,8 @@ export class Renderer {
   resize() {
     const rect = this.canvas.getBoundingClientRect();
     const w = Math.max(1, rect.width || innerWidth), h = Math.max(1, rect.height || innerHeight);
-    const cap = this.quality === 'low' ? 1 : this.quality === 'ultra' ? 1.75 : 1.35;
-    const dpr = Math.min(globalThis.devicePixelRatio || 1, cap);
+    const cap = this.quality === 'performance' ? 1 : this.quality === 'ultra' ? 1.5 : 1.2;
+    const dpr = Math.max(.45,Math.min(globalThis.devicePixelRatio || 1, cap)*this.dynamicScale);
     if (w !== this.width || h !== this.height || dpr !== this.dpr) {
       this.width = w; this.height = h; this.dpr = dpr;
       this.canvas.width = Math.round(w * dpr); this.canvas.height = Math.round(h * dpr);
@@ -327,11 +335,11 @@ export class Renderer {
     const parkAreas = (this.data.geo?.areas || []).filter(a => ['park', 'garden', 'grass', 'recreation_ground'].includes(a.type));
     const isWater = (x, y) => waterAreas.some(a => pointInPolygon(x, y, a.points) && !(a.holes || []).some(h => pointInPolygon(x, y, h)));
     const isPark = (x, y) => parkAreas.some(a => pointInPolygon(x, y, a.points));
+    const sampleGrid=new SpatialGrid(48);samples.forEach((p,i)=>sampleGrid.insert({...p,i}));
     const nearestDistance = (x, y, omitIndex) => {
       let min = Infinity;
-      for (let j = 0; j < samples.length; j += 2) {
-        if (Math.abs(j - omitIndex) < 4) continue;
-        const p = samples[j]; min = Math.min(min, Math.hypot(x - p.x, y - p.y));
+      for(const p of sampleGrid.query(x,y,55,this._nearSamples)){
+        if(Math.abs(p.i-omitIndex)<4)continue;min=Math.min(min,Math.hypot(x-p.x,y-p.y));
       }
       return min;
     };
@@ -366,7 +374,7 @@ export class Renderer {
         }
       }
       // Side barriers have a gap only at the start gate; no invisible blocking objects.
-      if (i % 2 === 0) for (const side of [-1, 1]) props.push({ kind: 'barrier', x: p.x + p.nx * (halfWidth + .3) * side, y: p.y + p.ny * (halfWidth + .3) * side, w: 3, h: .9, heading: p.heading, variant: i % 6, id: i * side });
+      if (i % 2 === 0 && !(track.shortcuts||[]).some(b=>Math.hypot(p.x-b.points[0][0],p.y-b.points[0][1])<15||Math.hypot(p.x-b.points.at(-1)[0],p.y-b.points.at(-1)[1])<15)) for (const side of [-1, 1]) props.push({ kind: 'barrier', x: p.x + p.nx * (halfWidth + .3) * side, y: p.y + p.ny * (halfWidth + .3) * side, w: 3, h: .9, heading: p.heading, variant: i % 6, id: i * side });
       // Route-facing signs are placed before significant turns.
       const future = samples[(i + 7) % samples.length];
       const bend = angleDelta(future.heading, p.heading);
@@ -391,7 +399,13 @@ export class Renderer {
     }
     // Preserve actual OSM area footprints; cache bounds for distance culling.
     const areas = (this.data.geo?.areas || []).map(a => ({ ...a, minX: Math.min(...a.points.map(p => p[0])), maxX: Math.max(...a.points.map(p => p[0])), minY: Math.min(...a.points.map(p => p[1])), maxY: Math.max(...a.points.map(p => p[1])) }));
-    const out = { samples, props, halfWidth, areas, track };
+    const district=track.district||'center',choices={lake:[4,3],garden:[3,4],oldtown:[5,6],port:[0,1,7],bridge:[2,5],center:[6,4]}[district];
+    for(let i=10;i<samples.length;i+=36){const p=samples[i],side=i%2?1:-1,off=halfWidth+20,x=p.x+p.nx*off*side,y=p.y+p.ny*off*side;
+      if(!isWater(x,y)&&nearestDistance(x,y,i)>halfWidth+10){for(let j=props.length-1;j>=0;j--)if(props[j].kind==='shop'&&Math.hypot(props[j].x-x,props[j].y-y)<19)props.splice(j,1);props.push({kind:'district',x,y,w:22,h:23,frame:choices[Math.floor(i/36)%choices.length],id:i});}}
+    const propGrid=new SpatialGrid(64);for(const prop of props)propGrid.insert(prop);
+    const nearby=this.roadGrid.query((track.bounds.minX+track.bounds.maxX)/2,(track.bounds.minY+track.bounds.maxY)/2,Math.max(track.bounds.maxX-track.bounds.minX,track.bounds.maxY-track.bounds.minY)/2+100,[]),traffic=[];
+    for(const road of nearby){if(traffic.length>=6)break;const len=Math.hypot(road.b[0]-road.a[0],road.b[1]-road.a[1]);if(len>24&&nearestDistance(road.x,road.y,-100)>halfWidth+18&&nearestDistance(...road.a,-100)>halfWidth+13&&nearestDistance(...road.b,-100)>halfWidth+13)traffic.push(road);}
+    const out = { samples, props, propGrid,traffic, halfWidth, areas, track };
     this.routeCache.set(key, out); return out;
   }
 
@@ -429,7 +443,7 @@ export class Renderer {
   render(state = {}, dt = 1 / 60) {
     const began = performance.now();
     this.time += Math.min(dt || 0, .1);
-    this.quality = state.config?.quality || this.quality || 'high'; this.resize();
+    this.quality = normalizeQuality(state.config?.quality || this.quality); this.resize();
     const ctx = this.ctx, W = this.width, H = this.height;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     const track = state.track || this.data.tracks?.[state.config?.track || 0] || this.data.geo?.routes?.[0];
@@ -439,25 +453,27 @@ export class Renderer {
     const p = state.player || { x: first.x, y: first.y, heading: first.heading, speed: 0 };
     const menu = state.phase === 'menu' || !state.player;
     const cm = Number(state.cameraMode || 0) % 3;
-    const camHeading = Number.isFinite(p.heading) ? p.heading : first.heading;
+    const camHeading = (Number.isFinite(p.heading) ? p.heading : first.heading)+(state.cinematic?.azimuth||0);
     if (!this.camera || this._lastTrack !== track.name || this._lastPhase === 'menu' && !menu) this.camera = { heading: camHeading };
     this._lastTrack = track.name; this._lastPhase = state.phase;
     const smooth = 1 - Math.exp(-Math.min(dt || .016, .1) * (menu ? 2 : 7));
     this.camera.heading += angleDelta(camHeading, this.camera.heading) * smooth;
-    const back = cm === 1 ? 31 : cm === 2 ? 9 : 18;
-    const height = cm === 1 ? 18 : cm === 2 ? 5 : 9;
-    Object.assign(this.camera, { x: p.x, y: p.y, cos: Math.cos(this.camera.heading), sin: Math.sin(this.camera.heading), back, height, focal: H * (cm === 1 ? 1.01 : .97), horizon: H * (cm === 1 ? .25 : .31) });
+    const boost=p.nitroActive?1:0,braking=p.weightTransfer||0;
+    const back = (cm === 1 ? 31 : cm === 2 ? 9 : 18)+boost*2+braking*3;
+    const height = (cm === 1 ? 18 : cm === 2 ? 5 : 9)+braking*2;
+    Object.assign(this.camera, { x: p.x, y: p.y, cos: Math.cos(this.camera.heading), sin: Math.sin(this.camera.heading), back, height, focal: H * (cm === 1 ? 1.01 : .97)*(1-boost*.055), horizon: H * (cm === 1 ? .25 : .31) });
     const env = state.environment || { time: 'day', weather: 'clear' };
     const theme = THEMES[env.time] || THEMES.day;
     const weather = env.weather || 'clear';
     this._theme = theme; this._env = env;
-    this._maxDistance = this.quality === 'low' ? 245 : this.quality === 'ultra' ? 500 : 380;
+    this._maxDistance = (this.quality === 'performance' ? 210 : this.quality === 'ultra' ? 420 : 290)*Math.max(.8,this.detail);
+    const shake=(state.config?.cameraShake??.45)*(p.hitTimer>1?Math.min(1,(p.hitTimer-1)*4):0);ctx.translate(Math.sin(this.time*79)*shake*2,Math.cos(this.time*61)*shake);
     this.drawSky(theme, env, menu);
     ctx.fillStyle = theme.ground; ctx.fillRect(0, this.camera.horizon, W, H - this.camera.horizon);
     this.drawAreas(scene, theme, p);
     this.drawContextRoads(scene, theme, p);
     this.drawTrack(scene, theme, p);
-    this.drawObjects(scene, state, theme, p);
+    this.drawObjects(scene, state, theme, p);this.drawSkills(state,dt);
     if (env.time !== 'day') {
       ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = env.time === 'night' ? '#9eb4d8' : '#ffe2c7'; ctx.globalAlpha = env.time === 'night' ? .24 : .13; ctx.fillRect(0, this.camera.horizon, W, H); ctx.restore();
     }
@@ -499,7 +515,7 @@ export class Renderer {
         g.ellipse(x, y, cloud.w * .5, cloud.w * .08, 0, 0, TAU); g.ellipse(x - cloud.w * .2, y - cloud.w * .05, cloud.w * .25, cloud.w * .14, 0, 0, TAU); g.ellipse(x + cloud.w * .13, y - cloud.w * .07, cloud.w * .24, cloud.w * .17, 0, 0, TAU); g.fill();
       }
       // A pair of distant birds gives the harbour skyline a little movement.
-      if (this.quality !== 'low') { g.strokeStyle = '#617e86aa'; g.lineWidth = 1.5; for (let i = 0; i < 3; i++) { const x = (W * .6 + this.time * 7 + i * 24) % W, y = H * .16 + Math.sin(this.time * .6 + i) * 7; g.beginPath(); g.moveTo(x - 5, y); g.quadraticCurveTo(x - 2, y - 4, x, y); g.quadraticCurveTo(x + 2, y - 4, x + 5, y); g.stroke(); } }
+      if (this.quality !== 'performance') { g.strokeStyle = '#617e86aa'; g.lineWidth = 1.5; for (let i = 0; i < 3; i++) { const x = (W * .6 + this.time * 7 + i * 24) % W, y = H * .16 + Math.sin(this.time * .6 + i) * 7; g.beginPath(); g.moveTo(x - 5, y); g.quadraticCurveTo(x - 2, y - 4, x, y); g.quadraticCurveTo(x + 2, y - 4, x + 5, y); g.stroke(); } }
     }
     const backdrop = this.findAsset(['background', 'panorama', 'city.panorama', 'city.background']);
     if (backdrop) {
@@ -527,21 +543,15 @@ export class Renderer {
     }
   }
 
-  drawContextRoads(scene, theme, player) {
-    const roads = this.data.geo?.roads || [], reach = this._maxDistance;
-    for (const r of roads) {
-      const pts = r.points;
-      if (pts.length < 2 || !pts.some(p => Math.hypot(p[0] - player.x, p[1] - player.y) < reach)) continue;
-      // Only the broad city streets support the visual context. Small service
-      // ways do not add unstable flickering lines beneath our closed raceway.
-      if (r.width < 5 || ['footway', 'path', 'steps'].includes(r.kind)) continue;
-      for (let i = 0; i < pts.length - 1; i++) {
-        const a = pts[i], b = pts[i + 1];
-        if (Math.min(Math.hypot(a[0] - player.x, a[1] - player.y), Math.hypot(b[0] - player.x, b[1] - player.y)) > reach) continue;
-        const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len, half = Math.min(r.width || 7, 12) * .5;
-        this.groundPoly([[a[0] + nx * (half + 2), a[1] + ny * (half + 2)], [b[0] + nx * (half + 2), b[1] + ny * (half + 2)], [b[0] - nx * (half + 2), b[1] - ny * (half + 2)], [a[0] - nx * (half + 2), a[1] - ny * (half + 2)]], theme.pavement);
-        this.groundPoly([[a[0] + nx * half, a[1] + ny * half], [b[0] + nx * half, b[1] + ny * half], [b[0] - nx * half, b[1] - ny * half], [a[0] - nx * half, a[1] - ny * half]], theme.roadEdge);
-      }
+  drawContextRoads(scene,theme,player){
+    for(const r of this.roadGrid.query(player.x,player.y,this._maxDistance+35,this._nearRoads)){
+      const a=r.a,b=r.b,len=Math.hypot(b[0]-a[0],b[1]-a[1])||1,nx=-(b[1]-a[1])/len,ny=(b[0]-a[0])/len,half=Math.min(r.width||7,12)*.5;
+      this.groundPoly([[a[0]+nx*(half+2),a[1]+ny*(half+2)],[b[0]+nx*(half+2),b[1]+ny*(half+2)],[b[0]-nx*(half+2),b[1]-ny*(half+2)],[a[0]-nx*(half+2),a[1]-ny*(half+2)]],theme.pavement);
+      this.groundPoly([[a[0]+nx*half,a[1]+ny*half],[b[0]+nx*half,b[1]+ny*half],[b[0]-nx*half,b[1]-ny*half],[a[0]-nx*half,a[1]-ny*half]],theme.roadEdge);
+    }
+    for(const branch of scene.track.shortcuts||[]){
+      for(let i=1;i<branch.points.length;i++){const a=branch.points[i-1],b=branch.points[i];if(Math.hypot(a[0]-player.x,a[1]-player.y)>this._maxDistance+50)continue;const len=Math.hypot(b[0]-a[0],b[1]-a[1])||1,nx=-(b[1]-a[1])/len,ny=(b[0]-a[0])/len,w=branch.halfWidth;
+       this.groundPoly([[a[0]+nx*w,a[1]+ny*w],[b[0]+nx*w,b[1]+ny*w],[b[0]-nx*w,b[1]-ny*w],[a[0]-nx*w,a[1]-ny*w]],theme.road,'#e5c777',1.5);}
     }
   }
 
@@ -566,7 +576,7 @@ export class Renderer {
       for (const side of [-1, 1]) {
         ribbon(a, b, side * width, side * (width + .4), i % 4 < 2 ? '#eee9cd' : '#ca7d6a');
         ribbon(a, b, side * (width - .42), side * (width - .30), '#e5dec1');
-        if (z < 120 && this.quality !== 'low') {
+        if (z < 120 && this.quality !== 'performance') {
           ribbon(a, b, side * (width + 3), side * (width + 3.05), '#9eac9660');
           const pa = this.project(a.x + a.nx * (width + 4) * side, a.y + a.ny * (width + 4) * side);
           const pb = this.project(a.x + a.nx * (width + .6) * side, a.y + a.ny * (width + .6) * side);
@@ -581,7 +591,7 @@ export class Renderer {
         this.groundPoly(arrow, envNight(this._env) ? '#8ce0c780' : '#d4e2bd99');
       }
       // Tiny repaired patches, drain covers and tire marks reward close viewing.
-      if (z < 75 && i % 11 === 3 && this.quality !== 'low') {
+      if (z < 75 && i % 11 === 3 && this.quality !== 'performance') {
         const off = width * .62;
         ribbon(a, { ...b, x: lerp(a.x, b.x, .3), y: lerp(a.y, b.y, .3) }, off - .32, off + .32, envNight(this._env) ? '#2b4559' : '#536570');
       }
@@ -616,14 +626,15 @@ export class Renderer {
     return { sx: (column % cols) * sw, sy: (row % rows) * sh, sw, sh };
   }
 
-  drawSprite(image, x, y, w, h, opacity = 1, frame = null, lean = 0, anchor = .94) {
-    const g = this.ctx;
-    if (w < .3 || h < .3) return;
-    g.save(); g.globalAlpha = opacity; g.translate(x, y);
-    if (lean) g.rotate(lean);
-    if (frame) g.drawImage(image, frame.sx, frame.sy, frame.sw, frame.sh, -w * .5, -h * anchor, w, h);
-    else g.drawImage(image, -w * .5, -h * anchor, w, h);
-    g.restore();
+  drawSprite(image,x,y,w,h,opacity=1,frame=null,lean=0,anchor=.94){
+    if(w<.6||h<.6||!image)return;
+    const g=this.ctx;
+    if(frame){let map=this.mipCache.get(image);if(!map){map=new Map();this.mipCache.set(image,map);}const size=w>280?512:w>130?256:w>60?128:64;
+      const key=[frame.sx,frame.sy,frame.sw,frame.sh,size].join(',');let tile=map.get(key);if(!tile){tile=canvas(size,Math.max(1,Math.round(size*frame.sh/frame.sw)));tile.getContext('2d').drawImage(image,frame.sx,frame.sy,frame.sw,frame.sh,0,0,tile.width,tile.height);map.set(key,tile);}image=tile;}
+    const alpha=g.globalAlpha;if(opacity!==1)g.globalAlpha*=opacity;
+    if(Math.abs(lean)>.002&&h>15){g.save();g.translate(x,y);g.rotate(lean);g.drawImage(image,-w*.5,-h*anchor,w,h);g.restore();}
+    else g.drawImage(image,x-w*.5,y-h*anchor,w,h);
+    if(opacity!==1)g.globalAlpha=alpha;
   }
 
   drawObjects(scene, state, theme, player) {
@@ -636,9 +647,9 @@ export class Renderer {
       if (p.x < -p.scale * (object.w || 5) || p.x > this.width + p.scale * (object.w || 5)) return;
       items.push({ object, p });
     };
-    for (const prop of scene.props) {
-      if (this.quality === 'low' && (prop.kind === 'person' && prop.id % 3 || prop.kind === 'bicycle')) continue;
-      add(prop);
+    for (const prop of scene.propGrid.query(player.x,player.y,this._maxDistance+35,this._nearProps)) {
+      if (this.quality === 'performance' && (prop.kind === 'person' && prop.id % 3 || prop.kind === 'bicycle')) continue;
+      if(prop.kind==='person'&&prop.id%3===0)add({...prop,x:prop.x+Math.sin(this.time*.5+prop.id)*1.5});else add(prop);
     }
     for (const ob of state.obstacles || []) if (!ob.hit || ob.type === 'barrier') add({ ...ob, kind: 'obstacle', w: ob.type === 'barrier' ? 2.4 : ob.type === 'crate' ? 1.4 : .7, h: ob.type === 'barrier' ? 1.2 : ob.type === 'crate' ? 1.1 : .9 });
     for (const item of state.pickups || []) if (!item.collected) add({ ...item, kind: 'pickup', w: .9, h: 1.1 });
@@ -647,16 +658,21 @@ export class Renderer {
       if (i !== (state.checkpointIndex || 0)) continue;
       if (Number.isFinite(cp.x)) add({ ...cp, kind: 'checkpoint', w: scene.halfWidth * 2, h: 4.5, index: i });
     }
+    for(const [i,road] of scene.traffic.entries()){const t=(this.time*(.12+i*.015)+i*.2)%1;add({kind:'rider',x:road.a[0]+(road.b[0]-road.a[0])*t,y:road.a[1]+(road.b[1]-road.a[1])*t,heading:Math.atan2(road.b[1]-road.a[1],road.b[0]-road.a[0]),speed:8,w:1.2,h:2.4,character:['minh','nhi','phong','rin'][i%4],ambient:true});}
+    if(state.chase?.active)add({...state.chase,kind:'rider',w:1.25,h:2.4,character:'lucien'});
+    for(const b of state.branches||[]){const entry=b.gates[0];add({...entry,kind:'turn',w:3.5,h:3.4,angle:.5,label:'LỐI TẮT'});}
     const start = scene.samples[0]; add({ kind: 'gate', x: start.x, y: start.y, w: scene.halfWidth * 2 + 1, h: 6.5, nx: start.nx, ny: start.ny, id: 0 });
     for (const rival of state.rivals || []) add({ ...rival, kind: 'rider', w: 1.25, h: 2.4, character: rival.id || 'lucien', isPlayer: false });
-    add({ ...player, kind: 'rider', w: 1.4, h: 2.6, character: 'aurora', isPlayer: true });
+    if(!state.cinematic?.hideRiders)add({ ...player, kind: 'rider', w: 1.4, h: 2.6, character: 'aurora', isPlayer: true });
     items.sort((a, b) => b.p.z - a.p.z);
     this.stats.visibleObjects = items.length;
     for (const { object: o, p } of items) {
       const distanceOpacity = clamp((this._maxDistance - p.z) / 100, 0, 1);
       if (distanceOpacity <= 0) continue;
       g.save(); g.globalAlpha = distanceOpacity;
-      if (o.kind === 'shop') {
+      if(o.kind==='district'){
+        const asset=this.findAsset(['districts']);if(asset){const frame=this.atlasFrame({...asset,fixedIndex:o.frame});this.shadow(p,o.w*.4,2.5,theme.shadow);this.drawSprite(asset.image,p.x,p.y,p.scale*o.w,p.scale*o.h,1,frame,0,.94);}
+      } else if (o.kind === 'shop') {
         const asset = this.findAsset(['buildings', 'city.buildings', 'architecture', 'shops']);
         const w = p.scale * o.w, h = p.scale * (asset ? o.w * 1.1 : o.h);
         this.shadow(p, o.w * .43, 2.2, theme.shadow);
@@ -739,6 +755,7 @@ export class Renderer {
     g.strokeStyle = '#45646c'; g.lineWidth = Math.max(1, scale * .1); g.lineCap = 'round';
     const xx = p.x + (o.angle > 0 ? .25 : -.25) * scale, yy = p.y - scale * 2.35;
     g.beginPath(); g.moveTo(xx - Math.sign(o.angle) * scale * .55, yy + scale * .35); g.lineTo(xx - Math.sign(o.angle) * scale * .55, yy - scale * .15); g.lineTo(xx + Math.sign(o.angle) * scale * .2, yy - scale * .15); g.lineTo(xx - Math.sign(o.angle) * scale * .03, yy - scale * .4); g.moveTo(xx + Math.sign(o.angle) * scale * .2, yy - scale * .15); g.lineTo(xx - Math.sign(o.angle) * scale * .03, yy + scale * .1); g.stroke();
+    if(o.label&&p.z<70){g.fillStyle='#ffe4a7';g.font=`bold ${clamp(scale*.25,8,18)}px sans-serif`;g.textAlign='center';g.fillText(o.label,p.x,p.y-scale*3.35);}
   }
 
   drawGate(o, scene, label, color) {
@@ -777,10 +794,41 @@ export class Renderer {
     if (p.z < 125) { g.font = `bold ${clamp(p.scale * .3, 9, 22)}px sans-serif`; g.fillStyle = '#e7f0cd'; g.textAlign = 'center'; g.fillText('CHECKPOINT', p.x, p.y - p.scale * 2.5); }
   }
 
+  cosmeticRider(asset,col,row,cosmetics){
+    const selected=cosmetics||{},key=[row,col,...['paint','helmet','jacket','gloves','accessory'].map(k=>selected[k])].join(':');
+    if(!this.cosmeticCache)this.cosmeticCache=new Map();if(this.cosmeticCache.has(key))return this.cosmeticCache.get(key);
+    const f=this.atlasFrame(asset,col,row),tile=canvas(320,320*f.sh/f.sw),g=tile.getContext('2d');g.drawImage(asset.image,f.sx,f.sy,f.sw,f.sh,0,0,tile.width,tile.height);
+    const palettes={coral:[222,111,91],ocean:[53,134,167],mint:[133,188,160],gold:[214,175,82],navy:[53,74,106],olive:[114,127,79],cream:[231,221,185],teal:[66,146,141]};
+    const paint=palettes[selected.paint],jacket=palettes[selected.jacket],gloves=palettes[selected.gloves];
+    if(paint||jacket||gloves||selected.accessory==='ribbon'){
+      const data=g.getImageData(0,0,tile.width,tile.height),px=data.data;
+      for(let y=0;y<tile.height;y++)for(let x=0;x<tile.width;x++){
+        const i=(y*tile.width+x)*4;if(px[i+3]<50)continue;const r=px[i],green=px[i+1],b=px[i+2],v=Math.max(r,green,b),lo=Math.min(r,green,b),u=x/tile.width,z=y/tile.height;let color=null;
+        const bikeMask=row===0?b>r*1.22&&b>green*1.06:row===1?green>r*1.1&&green>b*1.2:row===2?green>r*1.04&&green>b*1.01:r>green*1.4&&r>b*1.25;
+        if(paint&&z>.38&&bikeMask)color=paint;
+        if(jacket&&z>.22&&z<.53&&u>.22&&u<.88&&b>r*.99&&b>green*.97&&v<120)color=jacket;
+        if(gloves&&z>.32&&z<.48&&(u<.34||u>.77)&&v<65)color=gloves;
+        if(selected.accessory==='ribbon'&&z<.21&&u>.3&&u<.7&&v>175&&v-lo<65)color=palettes.coral;
+        if(color){const light=Math.max(.18,(r*.21+green*.72+b*.07)/145);px[i]=Math.min(255,color[0]*light);px[i+1]=Math.min(255,color[1]*light);px[i+2]=Math.min(255,color[2]*light);}
+      }
+      g.putImageData(data,0,0);
+    }
+    if(selected.helmet&&selected.helmet!=='classic'){
+      // Painted open-face helmet shell leaves the long hair and facial features visible.
+      const c=palettes[selected.helmet]||palettes.cream,cx=col===0?160:col===3?242:col===1?226:104,cy=col===0?28:30;
+      const gradient=g.createLinearGradient(cx-27,cy-20,cx+25,cy+20);gradient.addColorStop(0,`rgb(${c.map(v=>Math.min(255,v+25))})`);gradient.addColorStop(.6,`rgb(${c})`);gradient.addColorStop(1,`rgb(${c.map(v=>v*.65)})`);
+      g.fillStyle=gradient;g.strokeStyle='#494f4b';g.lineWidth=1.3;g.beginPath();g.ellipse(cx,cy,26,23,-.12,Math.PI,Math.PI*2);g.lineTo(cx+24,cy+7);g.quadraticCurveTo(cx,cy-3,cx-25,cy+7);g.closePath();g.fill();g.stroke();g.strokeStyle='#f5edd6aa';g.beginPath();g.ellipse(cx-2,cy-6,19,11,0,Math.PI*1.05,Math.PI*1.8);g.stroke();
+    }
+    if(selected.accessory==='heart'){
+      const x=col===0?174:col===3?247:col===1?239:117,y=col===0?32:35;g.fillStyle='#edb264';g.strokeStyle='#8f6742';g.lineWidth=.8;g.beginPath();g.moveTo(x,y+4);g.bezierCurveTo(x-13,y-3,x-6,y-10,x,y-5);g.bezierCurveTo(x+6,y-10,x+13,y-3,x,y+4);g.fill();g.stroke();
+    }
+    if(this.cosmeticCache.size>=12)this.cosmeticCache.delete(this.cosmeticCache.keys().next().value);this.cosmeticCache.set(key,tile);return tile;
+  }
+
   drawRider(o, p, state, theme) {
     const g = this.ctx;
     const id = ['aurora','lucien','minh','nhi','phong','rin'].includes(o.character) ? o.character : 'lucien';
-    const asset = (o.isPlayer && this.findAsset(['riders.vehicles'])) || this.findAsset([`riders.${id}`, `sprites.${id}`, `${id}.riding`, `riding.${id}`, `characters.${id}.riding`, `rider_${id}`, 'riders']);
+    const asset = (o.isPlayer&&state.cinematic?.duo&&this.findAsset(['duo'])) || (o.isPlayer && this.findAsset(['riders.vehicles'])) || this.findAsset([`riders.${id}`, `sprites.${id}`, `${id}.riding`, `riding.${id}`, `characters.${id}.riding`, `rider_${id}`, 'riders']);
     this.shadow(p, .65, .55, theme.shadow);
     const speed = o.speed || 0, lean = clamp((o.lean || o.steer || 0) * .22, -.24, .24);
     const bob = Math.sin(this.time * (8 + speed * .1)) * Math.min(.02, speed * .001);
@@ -795,10 +843,20 @@ export class Renderer {
       }
       row = o.isPlayer && this.assets['riders.vehicles'] === asset ? (state.config?.vehicle || 0) : (asset.row ?? 0);
       if (asset.animatedRows && rows > 1) row = speed > .6 ? Math.floor(this.time * 6) % rows : 0;
+      if(o.isPlayer&&state.cinematic?.duo){col=state.cinematic.view==='side'?1:state.cinematic.view==='front'?2:0;row=0;}
       const frame = this.atlasFrame(asset, col, row);
       const aspect = asset.aspect || frame.sw / frame.sh;
-      const worldHeight = asset.worldHeight || 2.75, h = p.scale * worldHeight, w = h * aspect;
-      this.drawSprite(asset.image, p.x, p.y + bob * p.scale, w, h, 1, frame, lean, asset.anchor || .96);
+      const worldHeight = asset.worldHeight || (state.cinematic?.duo&&o.isPlayer?3.2:2.75), h = p.scale * worldHeight, w = h * aspect;
+      if(o.isPlayer&&!state.cinematic?.duo&&Object.entries(state.cosmetics||{}).some(([k,v])=>v!==({paint:'original',helmet:'classic',jacket:'original',gloves:'black',accessory:'daisies'})[k]))this.drawSprite(this.cosmeticRider(asset,col,row,state.cosmetics),p.x,p.y+bob*p.scale,w,h,1,null,lean,asset.anchor||.96);
+      else this.drawSprite(asset.image, p.x, p.y + bob * p.scale, w, h, 1, frame, lean, asset.anchor || .96);
+      if(speed>2){
+        // A restrained moving spoke highlight animates the painted wheels without
+        // replacing the illustrated tyres or changing their contact with the road.
+        const side=state.cinematic?.duo&&state.cinematic.view==='side'||col===1||col===2;
+        const rotation=o.wheelRotation??this.time*speed/.335;
+        g.save();g.translate(p.x,p.y+bob*p.scale);g.rotate(lean);g.strokeStyle='#d8e0cf55';g.lineWidth=Math.max(.5,p.scale*.012);
+        for(const xx of side?[-w*.29,w*.29]:[0]){const yy=side?-h*.12:-h*.11,rx=side?w*.07:w*.022,ry=h*.065;for(let i=0;i<2;i++){const a=rotation+i*Math.PI/2;g.beginPath();g.moveTo(xx-Math.cos(a)*rx,yy-Math.sin(a)*ry);g.lineTo(xx+Math.cos(a)*rx,yy+Math.sin(a)*ry);g.stroke();}}g.restore();
+      }
       // Visible brake and headlight glows remain subordinate to painted art.
       if (o.isPlayer && state.player?.brake > .1) { g.fillStyle = '#f98674'; g.shadowColor = '#ee6c61'; g.shadowBlur = 9; g.beginPath(); g.ellipse(p.x, p.y - h * .24, w * .07, h * .02, lean, 0, TAU); g.fill(); g.shadowBlur = 0; }
     } else {
@@ -806,19 +864,25 @@ export class Renderer {
       // illustrated bike, never a head made out of primitive 3D geometry.
       this.drawFallbackRider(o, p, state, id, lean);
     }
-    if (!o.isPlayer && p.z < 100) {
-      const name = String(o.character || 'Lucien');
+    if (!o.isPlayer && !o.ambient && p.z < 100) {
+      const name = displayName({characterNames:state.characterNames},o.character||'lucien');
       g.font = `600 ${clamp(p.scale * .18, 9, 13)}px sans-serif`; g.textAlign = 'center';
       const labelWidth = g.measureText(name).width + 18;
       rounded(g, p.x - labelWidth * .5, p.y - p.scale * 3.25, labelWidth, 19, 7, '#1e4b58ce', '#d8dfc159');
       g.fillStyle = '#f4e9cf'; g.fillText(name[0].toUpperCase() + name.slice(1), p.x, p.y - p.scale * 3.25 + 13);
     }
     // Speed-linked, short hair/cloth streaks are extremely restrained.
-    if (o.isPlayer && speed > 25 && this.quality !== 'low') {
+    if (o.isPlayer && speed > 25 && this.quality !== 'performance') {
       g.save(); g.strokeStyle = '#e6edda66'; g.lineWidth = 1.5;
       for (const side of [-1, 1]) { g.beginPath(); g.moveTo(p.x + p.scale * .5 * side, p.y - p.scale * .45); g.lineTo(p.x + p.scale * .7 * side, p.y + p.scale * .35); g.stroke(); }
       g.restore();
     }
+  }
+
+  drawSkills(state,dt){
+    const p=state.player,g=this.ctx;if(!p)return;this.particleClock+=dt;
+    if((p.drifting||p.nitroActive)&&this.particleClock>.06){this.particleClock=0;const item=this.particles[this.particleCursor++%this.particles.length];Object.assign(item,{x:p.x-Math.cos(p.heading)*1.2,y:p.y-Math.sin(p.heading)*1.2,life:p.drifting?.6:.32,max:p.drifting?.6:.32,kind:p.drifting?'smoke':'nitro',r:.25});}
+    for(const q of this.particles){if(q.life<=0)continue;q.life-=dt;q.r+=dt*.8;const v=this.project(q.x,q.y,.15);if(!v)continue;g.globalAlpha=Math.max(0,q.life/q.max)*.4;g.fillStyle=q.kind==='nitro'?'#a4f1e8':state.environment?.weather==='rain'?'#c4dce4':'#dbc7ac';g.beginPath();g.ellipse(v.x,v.y,Math.max(1,v.scale*q.r),Math.max(1,v.scale*q.r*.35),0,0,TAU);g.fill();}g.globalAlpha=1;
   }
 
   drawFallbackRider(o, p, state, id, lean) {
@@ -863,7 +927,7 @@ export class Renderer {
       }
     }
     // Falling flamboyant petals live on sidewalks; they don't become hazards.
-    if (this.quality !== 'low' && time !== 'night' && weather === 'clear') {
+    if (this.quality !== 'performance' && time !== 'night' && weather === 'clear') {
       g.fillStyle = '#edb99999';
       for (let i = 0; i < 9; i++) {
         const x = (hash(i * 11) * W + Math.sin(this.time * .3 + i) * 35 + this.time * 12) % W, y = (hash(i * 9) * H + this.time * 17) % H;

@@ -1,3 +1,4 @@
+import {displayName,replaceNames,tunedVehicle,upgradeCost,UPGRADE_KINDS} from './profile.js?v=9';
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const names = {aurora:'Aurora',lucien:'Lucien',minh:'Minh',nhi:'Nhi',phong:'Phong',rin:'Rin'};
@@ -32,10 +33,11 @@ export class UI {
     this.engine.addEventListener('change', event => {
       if (event.detail?.type === 'toast' && event.detail.text) this.toast(event.detail.text);
       if (event.detail?.type === 'pickup') this.toast('Một món quà nhỏ từ thành phố ♡');
-      if (event.detail?.type === 'checkpoint') this.toast(`Checkpoint ${Number(event.detail.index)+1} · Đúng đường rồi!`, 1400);
+      if (['skill','chase'].includes(event.detail?.type)) this.toast(this.text(event.detail.text),1800);
+      if(event.detail?.type==='profile'){this.refreshNames();if($('garageDialog').open)this.renderGarage();}
     });
     $('loading').hidden = true;
-    this.showMenu();
+    this._bindV9();this.refreshNames();this.showMenu();
   }
 
   bind(actions = {}) { this.actions = actions; return this; }
@@ -132,7 +134,7 @@ export class UI {
         event.preventDefault();
         if (dialog.id === 'settingsDialog') this.closeSettings();
         else if (dialog.id === 'pauseDialog') {this._closeDialog('pauseDialog');this._act('resume');}
-        else if (dialog.id === 'helpDialog') this._closeDialog('helpDialog');
+        else this._closeDialog(dialog.id);
       });
     }
     document.querySelector('.brand').addEventListener('click', event => event.preventDefault());
@@ -142,7 +144,8 @@ export class UI {
 
   syncSettings() {
     const settings = this._settings();
-    $('qualitySelect').value = settings.quality || 'high';
+    $('qualitySelect').value = settings.quality || 'balanced';
+    $('autoQualityToggle').checked=settings.autoQuality!==false;$('shakeToggle').checked=settings.cameraShake>0;$('performanceToggle').checked=!!settings.showPerformance;
     $('timeSelect').value = settings.time || 'day';
     $('weatherSelect').value = settings.weather || 'clear';
     $('carrySelect').value = settings.carryEnabled === false ? '0' : '1';
@@ -159,7 +162,7 @@ export class UI {
     $('soundButton').textContent = settings.sound === false ? '♪' : '♫';
     $('soundButton').setAttribute('aria-label', settings.sound === false ? 'Bật âm thanh' : 'Tắt âm thanh');
     const low = navigator.hardwareConcurrency <= 4 || (navigator.deviceMemory && navigator.deviceMemory <= 4);
-    $('qualityRecommendation').textContent = low ? 'Gợi ý: mức Thấp để ưu tiên độ mượt trên thiết bị này.' : 'Gợi ý: mức Cao cân bằng hình ảnh và độ mượt.';
+    $('qualityRecommendation').textContent = low ? 'Gợi ý: Performance để ưu tiên độ mượt trên thiết bị này.' : 'Balanced tự điều chỉnh theo thời gian khung hình thực tế.';
   }
 
   applySettings(settings) {this._act('settings', settings);this.syncSettings();}
@@ -170,6 +173,7 @@ export class UI {
     this.input.brake = this.touchPressed.has('brake') ? 1 : 0;
     this.input.steer = (this.touchPressed.has('right') ? 1 : 0) - (this.touchPressed.has('left') ? 1 : 0);
     this.input.tuck = this.touchPressed.has('tuck');
+    this.input.drift=this.touchPressed.has('drift');this.input.nitro=this.touchPressed.has('nitro');
   }
   resetInput() {this.touchPressed.clear();for (const button of document.querySelectorAll('[data-control]')) button.classList.remove('pressed');this.updateTouch();}
 
@@ -235,8 +239,8 @@ export class UI {
     const [id, text] = lines[this.storyIndex];
     $('menu').hidden = true;$('hud').hidden = true;$('storyScreen').hidden = false;
     $('storyChapter').textContent = `CHƯƠNG ${String(config.level+1).padStart(2,'0')} · ${this.data.levels[config.level].name.toUpperCase()}`;
-    $('storySpeaker').textContent = names[id] || id;
-    $('storyText').textContent = text;
+    $('storySpeaker').textContent = displayName(this.engine.save,id);
+    $('storyText').textContent = this.text(text);
     const portrait = $('storyPortrait');
     portrait.className = 'character-portrait';
     if (id === 'aurora' || id === 'lucien') {
@@ -252,7 +256,7 @@ export class UI {
       portrait.style.backgroundSize = '400% 200%';
       portrait.style.backgroundPosition = `${cell[0]*100/3}% ${cell[1]*100}%`;
     }
-    portrait.setAttribute('aria-label', names[id] || id);
+    portrait.setAttribute('aria-label', displayName(this.engine.save,id));
     $('storyProgress').textContent = `${String(this.storyIndex+1).padStart(2,'0')} / ${String(lines.length).padStart(2,'0')}`;
     $('nextStory').innerHTML = this.storyIndex === lines.length-1 ? 'VÀO ĐƯỜNG ĐUA <span class="arrow-ne" aria-hidden="true"></span>' : 'TIẾP TỤC <span>→</span>';
   }
@@ -263,7 +267,7 @@ export class UI {
 
   showMenu() {
     $('menu').hidden = false;$('hud').hidden = true;$('storyScreen').hidden = true;$('cinemaScreen').hidden = true;
-    this.resetInput();this.renderRoutes();this.updateSelection();this.syncSettings();
+    this.resetInput();this.renderRoutes();this.updateSelection();this.syncSettings();this.refreshNames();
   }
 
   openSettings() {
@@ -285,7 +289,7 @@ export class UI {
     const phase = state.phase;
     const now = performance.now();
     if (this.toastUntil && now >= this.toastUntil) {$('raceToast').hidden = true;$('globalToast').hidden = true;this.toastUntil = 0;}
-    const saveStamp = `${this.engine.save?.unlocked}|${this.engine.save?.totalCarries}|${Object.keys(this.engine.save?.wins || {}).join()}`;
+    const saveStamp = `${this.engine.save?.unlocked}|${this.engine.save?.totalCarries}|${this.engine.save?.coins}|${JSON.stringify(this.engine.save?.wins)}`;
     if (saveStamp !== this.lastSaveStamp) {this.lastSaveStamp = saveStamp;this.updateSelection();if (phase === 'menu') this.renderRoutes();}
     $('menu').hidden = phase !== 'menu' || Boolean(this.storyPending);
     $('storyScreen').hidden = !this.storyPending;
@@ -322,7 +326,9 @@ export class UI {
       $('hudGear').textContent = bike.id === 'vespa' ? 'CVT' : `SỐ ${clamp(Math.floor(speed/35)+1,1,6)}`;
       $('speedBar').style.width = `${Math.min(100,speed/(bike.max*3.6)*100)}%`;
       $('hudGrip').textContent = state.environment?.weather === 'rain' ? 'ĐƯỜNG ƯỚT · PHANH SỚM' : state.environment?.weather === 'fog' ? 'SƯƠNG NHẸ · GIỮ TẦM NHÌN' : 'BÌNH TĨNH QUA TỪNG GÓC CUA';
-      $('carryCount').textContent = `♡ ${this.engine.save?.totalCarries || 0} lần được Lucien cứu hộ`;
+      $('carryCount').textContent = `♡ ${this.engine.save?.totalCarries || 0} lần được ${displayName(this.engine.save,'lucien')} cứu hộ`;
+      const nitro=clamp((player.nitro||0)/(state.bike?.nitroCapacity||100)*100,0,100);$('nitroValue').textContent=Math.round(nitro)+'%';$('nitroBar').style.width=nitro+'%';
+      $('skillStatus').hidden=!player.drifting&&!player.nitroActive;$('skillStatus').textContent=player.nitroActive?'NITRO ↑':`DRIFT x${Math.max(1,player.combo||1)} · ${Math.round(player.driftCharge||0)} năng lượng`;
       $('hudCheckpoint').textContent = `CP ${(state.checkpointIndex || 0)+1} / ${state.checkpoints?.length || 1}`;
       const turn = state.nextTurn;
       const turning = turn && turn.distance < 140 && Math.abs(turn.angle) > .4;
@@ -381,7 +387,7 @@ export class UI {
     else if (elapsed < 5.5) {speaker='LUCIEN';text='“Hahaha! Đường về dài lắm, để anh đưa em.”';note='Aurora giận dỗi một chút, rồi khẽ nắm lấy vai anh.';}
     else if (kissMoment) {speaker='AURORA';text='“Anh… mọi người đang nhìn kìa!”';note='Một nụ hôn má, hai gương mặt ửng hồng. ♡';}
     else {speaker='LUCIEN';text='“Nghỉ một chút thôi. Rồi em lại tự cầm lái nhé.”';note=scene.preview ? 'Xem thử không thay đổi tiến trình hay thành tích.' : 'Cứu hộ về checkpoint gần nhất · +8 giây · Không cấp huy chương.';}
-    $('cinemaSpeaker').textContent=speaker;$('cinemaText').textContent=text;$('cinemaNote').textContent=note;
+    $('cinemaSpeaker').textContent=this.text(speaker==='LUCIEN'?'Lucien':'Aurora').toUpperCase();$('cinemaText').textContent=this.text(text);$('cinemaNote').textContent=this.text(note);
   }
 
   showResult(state) {
@@ -392,6 +398,9 @@ export class UI {
     $('resultLabel').textContent = result.best ? 'VỀ ĐÍCH · KỶ LỤC CÁ NHÂN MỚI' : 'KẾT QUẢ CHẶNG ĐUA';
     $('resultTitle').textContent = result.won ? 'Gió cũng chạy theo bạn.' : 'Một vòng phố, thêm một kỷ niệm.';
     $('resultDescription').textContent = result.won ? (story ? 'Một chương mới đã mở. Có người đang đợi bạn ở góc phố tiếp theo.' : 'Bạn đã hoàn thành đúng thứ tự checkpoint và về đích đầu tiên.') : 'Bạn đã đi hết đường đua. Bình tĩnh ở góc cua tiếp theo, mình thử lại nhé.';
+    $('resultDescription').textContent += ` +${result.coins||0} xu · Drift ${Math.round(state.stats.driftSeconds||0)} giây.`;
+    if(story&&result.won)$('resultDescription').textContent += this.text(state.config.level===4?' Lucien: “Nhà vô địch của anh, hẹn em ở chuyến đi tiếp theo.”':' Aurora: “Một chặng nữa rồi! Hẹn ở góc phố tiếp theo nhé.”');
+    $('resultTitle').textContent=this.text(result.won?'Aurora, gió cũng chạy theo em.':'Một vòng phố, thêm một kỷ niệm.');
     $('resultPosition').textContent = `${result.position || state.rank || 1} / ${(state.rivals?.length || 1)+1}`;
     $('resultTime').textContent = timeText(result.time);
     $('resultCollisions').textContent = state.stats?.collisions || result.stats?.collisions || 0;
@@ -431,10 +440,52 @@ export class UI {
     if (player) {const [x,y]=xy(player.x,player.y);ctx.save();ctx.translate(x,y);ctx.rotate(player.heading||0);ctx.beginPath();ctx.moveTo(7,0);ctx.lineTo(-5,-4.5);ctx.lineTo(-3,0);ctx.lineTo(-5,4.5);ctx.closePath();ctx.fillStyle='#df705c';ctx.strokeStyle='#fff8ea';ctx.lineWidth=1.4;ctx.fill();ctx.stroke();ctx.restore();}
   }
 
+  text(value){return replaceNames(value,this.engine.save);}
+  refreshNames(){
+    for(const element of document.querySelectorAll('[data-name-template]'))element.textContent=this.text(element.dataset.nameTemplate);
+    $('heroDriverName').textContent=displayName(this.engine.save,'aurora');$('minimapDriver').textContent=displayName(this.engine.save,'aurora').toUpperCase();
+    $('opponentSelect').querySelector('[value="lucien"]').textContent=displayName(this.engine.save,'lucien')+' ♡';
+    const next=Math.min(4,Math.max(0,this.engine.save.unlocked-1));$('continueChapter').textContent=this.data.levels[next].name;
+  }
+  _bindV9(){
+    $('chooseCustom').onclick=()=>{this.setMode('custom');$('routeChoices').scrollIntoView({block:'nearest',behavior:'smooth'});};
+    $('chooseStory').onclick=()=>{this.setMode('story');$('routeChoices').scrollIntoView({block:'nearest',behavior:'smooth'});};
+    $('continueJourney').onclick=()=>{this.level=Math.min(4,Math.max(0,this.engine.save.unlocked-1));this.setMode('story');this.startSelected();};
+    $('namesButton').onclick=()=>{const n=this.engine.save.characterNames;$('auroraName').value=n.aurora;$('lucienName').value=n.lucien;$('nameFeedback').textContent='';this._openDialog('namesDialog');};
+    $('closeNames').onclick=()=>this._closeDialog('namesDialog');
+    $('namesForm').onsubmit=event=>{event.preventDefault();const a=$('auroraName').value.trim(),l=$('lucienName').value.trim();if(!a||!l||/[<>]/u.test(a+l)||!/[\p{L}\p{N}\p{Extended_Pictographic}]/u.test(a)||!/[\p{L}\p{N}\p{Extended_Pictographic}]/u.test(l)){$('nameFeedback').textContent='Nhập hai tên hợp lệ, không dùng mã HTML.';return;}this.engine.setNames({aurora:a,lucien:l});this.refreshNames();this._closeDialog('namesDialog');this.toast('Đã lưu tên của hai người.');};
+    $('resetNames').onclick=()=>{this.engine.setNames({aurora:'Aurora',lucien:'Lucien'});$('auroraName').value='Aurora';$('lucienName').value='Lucien';this.refreshNames();$('nameFeedback').textContent='Đã khôi phục tên mặc định.';};
+    $('garageButton').onclick=()=>{this.garageVehicle=this.vehicle;this.renderGarage();this._openDialog('garageDialog');};
+    for(const id of ['closeGarage','garageDone'])$(id).onclick=()=>this._closeDialog('garageDialog');
+    $('garageVehicles').onclick=event=>{const b=event.target.closest('[data-garage-vehicle]');if(b){this.garageVehicle=+b.dataset.garageVehicle;this.renderGarage();}};
+    $('upgradeChoices').onclick=event=>{const b=event.target.closest('[data-upgrade]');if(!b)return;const result=this.engine.upgradeVehicle(this.data.vehicles[this.garageVehicle].id,b.dataset.upgrade);$('garageFeedback').textContent=result.ok?'Đã nâng cấp. Xe đã sẵn sàng cho cuộc đua tiếp theo.':result.reason==='insufficient-coins'?'Chưa đủ xu. Hoàn thành cuộc đua hoặc Drift để tích thêm.':'Hạng mục đã đạt cấp tối đa.';this.renderGarage();};
+    for(const key of ['paint','helmet','jacket','gloves','accessory'])$(key+'Select').onchange=event=>{this.engine.setCosmetics({[key]:event.target.value});this.renderGarage();};
+    $('memoriesButton').onclick=()=>{this.renderMemories();this._openDialog('memoriesDialog');};$('closeMemories').onclick=()=>this._closeDialog('memoriesDialog');
+    $('previewEndingButton').onclick=()=>{this.closeDialogs();this.storyPending=null;this._act('previewEnding');};
+    $('replayEnding').onclick=()=>{this.closeDialogs();this._act('replayEnding');};
+    $('autoQualityToggle').onchange=event=>this.applySettings({autoQuality:event.target.checked});$('shakeToggle').onchange=event=>this.applySettings({cameraShake:event.target.checked?.45:0});$('performanceToggle').onchange=event=>this.applySettings({showPerformance:event.target.checked});
+    for(const id of ['fullscreenMenu','fullscreenButton'])$(id).onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{this.toast('Trình duyệt này chưa cho phép toàn màn hình.');}};
+  }
+  renderGarage(){
+    const index=this.garageVehicle||0,base=this.data.vehicles[index],bike=tunedVehicle(base,this.engine.save);
+    $('garageCoins').textContent=this.engine.save.coins.toLocaleString('vi-VN');
+    $('garageVehicles').innerHTML=this.data.vehicles.map((v,i)=>`<button data-garage-vehicle="${i}" class="${i===index?'active':''}" aria-pressed="${i===index}">${escapeHTML(v.name)}</button>`).join('');
+    $('garageBikeName').textContent=base.name;$('garageBikeStats').textContent=`${Math.round(bike.max*3.6)} km/h · Gia tốc ${bike.acc.toFixed(1)} · Bám đường ${bike.grip.toFixed(2)} · Nitro ${bike.nitroCapacity}`;
+    const titles={engine:'Động cơ',tires:'Lốp xe',brakes:'Phanh',nitro:'Bình Nitro',stability:'Ổn định'},descs={engine:'Tăng gia tốc và tốc độ tối đa',tires:'Bám cua chắc hơn, drift dễ kiểm soát',brakes:'Giảm quãng đường phanh',nitro:'Thêm dung lượng và lực đẩy',stability:'Giữ xe ổn định khi đổi hướng'};
+    $('upgradeChoices').innerHTML=UPGRADE_KINDS.map(kind=>{const level=bike.upgrades[kind],cost=upgradeCost(level,kind);return `<button data-upgrade="${kind}" ${level===3?'disabled':''}><span><b>${titles[kind]}</b><small>${descs[kind]}</small></span><i>${'●'.repeat(level)}${'○'.repeat(3-level)}</i><strong>${level===3?'TỐI ĐA':cost+' xu ↗'}</strong></button>`;}).join('');
+    this.onGaragePreview?.(index,this.engine.save.garage.cosmetics);
+    for(const [key,value] of Object.entries(this.engine.save.garage.cosmetics)){const select=$(key+'Select');if(select)select.value=value;}
+  }
+  renderMemories(){
+    const memory=this.engine.save.memories.heart_bracelet,unlocked=this.engine.save.endingUnlocked&&!!memory;$('memoryGift').hidden=!unlocked;$('memoryLocked').hidden=unlocked;$('replayEnding').disabled=!unlocked;
+    if(unlocked){$('memoryGiftName').textContent=memory.title;$('memoryGiftDescription').textContent=this.text(memory.description);const date=new Date(memory.receivedAt);$('memoryGiftDate').textContent=`${displayName(this.engine.save,'aurora')} & ${displayName(this.engine.save,'lucien')} · ${Number.isNaN(+date)?'Đã lưu':date.toLocaleDateString('vi-VN')}`;}
+    this.refreshNames();
+  }
+
   toast(text, duration = 2800) {
     const racing = ['race','countdown','paused'].includes(this.engine.state.phase);
     const target = $(racing ? 'raceToast' : 'globalToast');
     $('raceToast').hidden = true;$('globalToast').hidden = true;
-    target.textContent = String(text);target.hidden = false;this.toastUntil = performance.now()+duration;
+    target.textContent = this.text(text);target.hidden = false;this.toastUntil = performance.now()+duration;
   }
 }

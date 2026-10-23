@@ -1,0 +1,56 @@
+{
+  "version": "V8",
+  "source": "git archive HEAD snapshot at /tmp/v8-baseline; unchanged source",
+  "browser": "Chromium154 headless cloud container, no physical Android",
+  "scenarios": [
+    {
+      "width": 1440,
+      "height": 900,
+      "quality": "high",
+      "samples": 150,
+      "meanMs": 34.11,
+      "p95Ms": 50,
+      "fps": 29.31691586045148,
+      "minFPS": 19.960079840319217,
+      "render": {
+        "fps": 26.737967914362404,
+        "frameMs": 4.199999995529652,
+        "visibleObjects": 500,
+        "quality": "high"
+      }
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "quality": "low",
+      "samples": 150,
+      "meanMs": 28.222,
+      "p95Ms": 33.400000000000546,
+      "fps": 35.433349868896606,
+      "minFPS": 20,
+      "render": {
+        "fps": 35.33568904603976,
+        "frameMs": 4.199999995529652,
+        "visibleObjects": 201,
+        "quality": "low"
+      }
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "quality": "low",
+      "mobile": true,
+      "samples": 150,
+      "meanMs": 16.77733333333333,
+      "p95Ms": 16.800000000000182,
+      "fps": 59.604227926567596,
+      "minFPS": 29.94011976047896,
+      "render": {
+        "fps": 60.04261088549087,
+        "frameMs": 2.3000000044703484,
+        "visibleObjects": 217,
+        "quality": "low"
+      }
+    }
+  ]
+}

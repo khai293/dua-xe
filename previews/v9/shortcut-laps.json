@@ -1,0 +1,44 @@
+{
+  "method": "Input-only feedback driver; no position edits, no rescue or rewards injected",
+  "results": [
+    {
+      "track": 2,
+      "phase": "result",
+      "time": 355.70833333317415,
+      "shortcuts": 1,
+      "valid": true,
+      "penalties": 0,
+      "checkpoints": 62,
+      "required": 62,
+      "progress": 0.02080302687970956,
+      "pending": 0,
+      "branch": null
+    },
+    {
+      "track": 3,
+      "phase": "result",
+      "time": 428.77499999977437,
+      "shortcuts": 1,
+      "valid": true,
+      "penalties": 0,
+      "checkpoints": 66,
+      "required": 66,
+      "progress": 0.0004653417214127074,
+      "pending": 0,
+      "branch": null
+    },
+    {
+      "track": 4,
+      "phase": "result",
+      "time": 877.6999999993661,
+      "shortcuts": 1,
+      "valid": true,
+      "penalties": 0,
+      "checkpoints": 143,
+      "required": 143,
+      "progress": 0.024320984669152425,
+      "pending": 0,
+      "branch": null
+    }
+  ]
+}

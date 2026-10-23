@@ -101,5 +101,28 @@
     "rivals": "assets/rivals.png",
     "expressions": "assets/expressions.png",
     "carryWalk": "assets/carry-walk.png"
+  },
+  "duo": {
+    "src": "assets/v9-duo.png",
+    "columns": 3,
+    "rows": 1
+  },
+  "districts": {
+    "src": "assets/v9-districts.png",
+    "columns": 4,
+    "rows": 2
+  },
+  "ending": {
+    "poses": {
+      "src": "assets/v9-ending-poses.png",
+      "columns": 4,
+      "rows": 2
+    },
+    "gift": {
+      "src": "assets/v9-gift.png",
+      "columns": 2,
+      "rows": 1
+    },
+    "dinner": "assets/v9-dinner.png"
   }
 }

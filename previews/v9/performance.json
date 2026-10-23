@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-23T01:30:40.182Z",
+  "browser": "154.0.8037.57",
+  "platform": "linux x64 6.18.55",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "environment": "Headless system Chromium in shared cloud container; mobile viewport/touch emulation only, no physical Android or hardware GPU guarantee.",
+  "method": "Unclamped requestAnimationFrame timestamps after warmup. Scenarios sequential. Nitro uses an explicit initial-reserve fixture. Camera switches during measurement. No frame rate cap, no invented device results.",
+  "scenarios": [
+    {
+      "name": "desktop-balanced-auto",
+      "width": 1440,
+      "height": 900,
+      "quality": "balanced",
+      "autoQuality": true,
+      "samples": 179,
+      "meanFrameMs": 16.85195530726257,
+      "fps": 59.340295043925074,
+      "minimumFPS": 30.030030030029046,
+      "p95FrameMs": 16.700000000000728,
+      "physicsAndAIMs": 0.11333333336644702,
+      "aiMs": 0.04166666650109821,
+      "renderMs": 3.408888889021344,
+      "meanObjects": 359,
+      "minResolutionScale": 0.6000000000000001,
+      "maxResolutionScale": 0.6000000000000001,
+      "detail": 1,
+      "activeNitroFrames": 0,
+      "heapBytes": 17269157,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 864,
+        "height": 540
+      }
+    },
+    {
+      "name": "desktop-performance-auto",
+      "width": 1440,
+      "height": 900,
+      "quality": "performance",
+      "autoQuality": true,
+      "samples": 179,
+      "meanFrameMs": 16.852513966480448,
+      "fps": 59.33832791884903,
+      "minimumFPS": 29.94011976047937,
+      "p95FrameMs": 16.799999999999272,
+      "physicsAndAIMs": 0.12222222238779068,
+      "aiMs": 0.042222222023540076,
+      "renderMs": 2.7149999989403617,
+      "meanObjects": 164,
+      "minResolutionScale": 0.65,
+      "maxResolutionScale": 0.65,
+      "detail": 1,
+      "activeNitroFrames": 0,
+      "heapBytes": 23155218,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 936,
+        "height": 585
+      }
+    },
+    {
+      "name": "desktop-ultra-fixed",
+      "width": 1440,
+      "height": 900,
+      "quality": "ultra",
+      "autoQuality": false,
+      "samples": 179,
+      "meanFrameMs": 31.656424581005588,
+      "fps": 31.589164387187857,
+      "minimumFPS": 19.960079840319217,
+      "p95FrameMs": 33.400000000000546,
+      "physicsAndAIMs": 0.17555555486016802,
+      "aiMs": 0.05055555535687341,
+      "renderMs": 4.736111112435659,
+      "meanObjects": 563,
+      "minResolutionScale": 1,
+      "maxResolutionScale": 1,
+      "detail": 1,
+      "activeNitroFrames": 0,
+      "heapBytes": 11957822,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "mobile-landscape-performance",
+      "width": 844,
+      "height": 390,
+      "quality": "performance",
+      "autoQuality": true,
+      "mobile": true,
+      "samples": 179,
+      "meanFrameMs": 16.665363128491624,
+      "fps": 60.00469310448861,
+      "minimumFPS": 59.52380952380566,
+      "p95FrameMs": 16.700000000000728,
+      "physicsAndAIMs": 0.10555555721124013,
+      "aiMs": 0.04500000029802322,
+      "renderMs": 2.0888888878954783,
+      "meanObjects": 180,
+      "minResolutionScale": 0.85,
+      "maxResolutionScale": 0.85,
+      "detail": 1,
+      "activeNitroFrames": 0,
+      "heapBytes": 19707902,
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "canvas": {
+        "width": 717,
+        "height": 332
+      }
+    },
+    {
+      "name": "desktop-night-rain-nitro-camera",
+      "width": 1440,
+      "height": 900,
+      "quality": "balanced",
+      "autoQuality": true,
+      "time": "night",
+      "weather": "rain",
+      "nitro": true,
+      "camera": true,
+      "samples": 179,
+      "meanFrameMs": 17.503910614525143,
+      "fps": 57.130090642154975,
+      "minimumFPS": 29.94011976047774,
+      "p95FrameMs": 33.29999999999927,
+      "physicsAndAIMs": 0.13611111094554265,
+      "aiMs": 0.035555555423100786,
+      "renderMs": 4.259444445371628,
+      "meanObjects": 367.24444444444447,
+      "minResolutionScale": 0.6000000000000001,
+      "maxResolutionScale": 0.6000000000000001,
+      "detail": 1,
+      "activeNitroFrames": 180,
+      "heapBytes": 17807126,
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "canvas": {
+        "width": 864,
+        "height": 540
+      }
+    },
+    {
+      "name": "ending-continuous-night-ride",
+      "samples": 174,
+      "fps": 59.65850648014815,
+      "meanFrameMs": 16.762068965517233,
+      "minimumFPS": 29.94011976047937,
+      "p95FrameMs": 16.799999999999272,
+      "renderMs": 3.503448273772481,
+      "resolutionScale": 0.55,
+      "endStage": "ride"
+    }
+  ]
+}

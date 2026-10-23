@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-23T01:36:36.587Z",
+  "origin": "http://127.0.0.1:4173",
+  "tests": [
+    {
+      "name": "Unicode names update visible menu/story and survive reload; invalid HTML rejected",
+      "status": "passed",
+      "evidence": {
+        "aurora": "Ánh Mai",
+        "lucien": "Hải Đăng"
+      }
+    },
+    {
+      "name": "garage buttons perform bounded purchases and persist chosen cosmetics",
+      "status": "passed",
+      "evidence": {
+        "cost": 170,
+        "walletFixture": true
+      }
+    },
+    {
+      "name": "physical keyboard drift and Nitro change gameplay without checkpoint popups",
+      "status": "passed",
+      "evidence": {
+        "chargedNitro": 7.574778436207752,
+        "initialSpeedFixture": true
+      }
+    },
+    {
+      "name": "ending preview renders every authored scene, Skip completes and grants nothing",
+      "status": "passed",
+      "evidence": {
+        "scenes": 9,
+        "scrubbedTimelineFixture": true,
+        "saveUnchanged": true
+      }
+    },
+    {
+      "name": "earned boss result persists one gift, names refresh in replay, no second reward",
+      "status": "passed",
+      "evidence": {
+        "coins": 1423,
+        "gateFixture": true,
+        "rewardUnchangedAfterReplay": true
+      }
+    },
+    {
+      "name": "landscape multi-touch supports throttle, steering and skills without stuck inputs",
+      "status": "passed",
+      "evidence": {
+        "device": "Chromium touch emulation, not physical Android",
+        "fingers": 3
+      }
+    },
+    {
+      "name": "all V9 scene assets load with no page errors",
+      "status": "passed",
+      "evidence": {
+        "errors": []
+      }
+    }
+  ],
+  "errors": [],
+  "passed": 7,
+  "failed": 0
+}

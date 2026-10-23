@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createData,sampleTrack,angleDiff,clamp} from '../src/data.js';
 import {GameEngine} from '../src/engine.js';
 const geo=JSON.parse(await readFile(new URL('../assets/haiphong-osm.json',import.meta.url),'utf8'));const data=createData(geo);
+const results=[];
 for(let track=0;track<10;track++){
 const e=new GameEngine(data,{getItem:()=>null,setItem(){}});e.start({track,carryEnabled:false,difficulty:.7});e.state.phase='race';
 let maxSide=0;
@@ -17,5 +18,9 @@ const input={steer:clamp(err*3,-1,1),throttle:p.speed<target?1:0,brake:p.speed>t
 e.update(1/120,input);
 }
 assert.equal(e.state.phase,'result');assert.equal(e.state.result.valid,true);assert.equal(e.state.stats.penalties,0);
+results.push({track,phase:e.state.phase,time:e.state.elapsed,result:e.state.result,stats:e.state.stats});
 console.log(track,e.state.phase,e.state.elapsed.toFixed(1),'cp',e.state.checkpointIndex+'/'+e.state.checkpoints.length,'lap',e.state.lap,'progress',e.state.player.progress.toFixed(1),'stats',e.state.stats);
 }
+
+await mkdir(new URL('../previews/v9/',import.meta.url),{recursive:true});
+await writeFile(new URL('../previews/v9/main-laps.json',import.meta.url),JSON.stringify({method:'Input-only feedback driver; no position edits, no rescue; original obstacles active',results},null,2));

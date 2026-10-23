@@ -136,7 +136,7 @@ export class AudioSystem {
     const phase = state.phase;
     const previousPhase = this._lastPhase;
     this._lastPhase = phase;
-    if (!['race', 'countdown', 'cutscene'].includes(phase) || !this.enabled) {
+    if (!['race', 'countdown', 'cutscene','ending'].includes(phase) || !this.enabled) {
       this.stop();
       if (phase !== 'paused') {this._lastStage = ''; this._scene = null;}
       return;
@@ -150,20 +150,26 @@ export class AudioSystem {
     const speed = Math.max(0, Number(player.speed) || 0);
     const throttle = Math.max(0, Math.min(1, Number(player.throttle) || 0));
     const brake = Math.max(0, Math.min(1, Number(player.brake) || 0));
-    const rpm = Number(player.rpm) || (1500 + speed * 145 + throttle * 1100);
+    const rpm = Number(player.rpm) || (1500 + speed * 145 + throttle * 1100+(player.nitroActive?1800:0));
     const motorHz = Math.max(28, Math.min(210, rpm / 52));
     this._level(this.motor.oscillator.frequency, motorHz, .045);
     this._level(this.motorLow.oscillator.frequency, motorHz / 2, .045);
-    this._level(this.motorFilter.frequency, 330 + throttle * 400 + speed * 9, .08);
+    this._level(this.motorFilter.frequency, 330 + throttle * 400 + speed * 9+(player.nitroActive?800:0), .08);
     this._level(this.motor.gain.gain, racing ? .024 + throttle * .022 : warming ? .018 : 0);
     this._level(this.motorLow.gain.gain, racing || warming ? .028 + throttle * .015 : 0);
-    this._level(this.wind.gain.gain, racing ? Math.min(.16, speed * speed / 18000) : 0, .15);
-    this._level(this.brake.gain.gain, racing && speed > 5 ? brake * Math.min(.023, speed * .00055) : 0, .035);
+    this._level(this.wind.gain.gain, racing ? Math.min(.16, speed * speed / 18000+(player.nitroActive?.035:0)) : 0, .15);
+    this._level(this.brake.gain.gain, racing && speed > 5 ? Math.max(brake,player.drifting?.7:0) * Math.min(.023, speed * .00055) : 0, .035);
     this._level(this.brake.oscillator.frequency, 540 + speed * 11, .07);
     const rainy = state.environment?.weather === 'rain';
     this._level(this.rain.gain.gain, rainy ? phase === 'cutscene' ? .055 : .09 : 0, .25);
     this._level(this.city.gain.gain, phase === 'cutscene' ? .0015 : .003, .25);
 
+    if(phase==='ending'){
+      if(previousPhase!=='ending'){this._silenceMusic();this._nextBeat=now+.1;this._beat=0;this._lastStage='';}
+      const stage=state.ending?.stage;if(stage==='gift'&&this._lastStage!==stage)this._cue([659.25,830.61,987.77],.18,.025,.7);this._lastStage=stage;
+      if(now>=this._nextBeat){const melody=[64,67,71,74,71,67,62,66,69,74,69,66,60,64,67,72,71,67,66,62];const n=melody[this._beat%melody.length];this._note(this.music[this._beat%this.music.length],440*2**((n-69)/12),now+.015,.7,.023);if(this._beat%4===0)this._note(this.music[(this._beat+1)%3],440*2**((n-81)/12),now+.015,1.4,.016);this._beat++;this._nextBeat=now+.44;}
+      return;
+    }
     if (phase === 'cutscene') {
       this._silenceMusic();
       if (this._scene !== state.cutscene) {
@@ -217,6 +223,7 @@ export class AudioSystem {
       this._cue([392, 493.88, 587.33, 783.99], .16, .037, .62);
     } else if (type === 'kiss') {
       this._cue([659.25, 830.61, 987.77, 1318.51], .14, .032, .7);
+    } else if(type==='skill'){this._cue([783.99,987.77],.08,.018,.2);
     } else if (type === 'finish') {
       this._cue([523.25, 659.25, 783.99, 1046.5], .09, .045, .5);
     } else if (type === 'countdown') {

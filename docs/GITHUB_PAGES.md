@@ -16,4 +16,4 @@ Nếu đang dùng tên miền riêng, ưu tiên địa chỉ GitHub hiển thị
 
 `index.html`, `src/`, `assets/` và `style.css` đã ở gốc repo; `.nojekyll` cho phép phục vụ trực tiếp. Giữ nguyên tên thư mục và chữ hoa/thường. Mọi ảnh và dữ liệu đều dùng đường dẫn tương đối để hoạt động dưới `/dua-xe/`.
 
-Tiến trình chơi lưu riêng trong trình duyệt tại địa chỉ Pages. Có thể dùng Xuất/Nhập JSON trong cài đặt để chuyển tiến trình V8 từ địa chỉ cũ.
+Tiến trình chơi lưu riêng trong trình duyệt tại địa chỉ Pages. Có thể dùng Xuất/Nhập JSON trong cài đặt để chuyển tiến trình V8/V9 từ địa chỉ cũ.

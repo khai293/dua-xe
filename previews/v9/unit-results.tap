@@ -1,0 +1,286 @@
+TAP version 13
+# Subtest: original V7 content is retained: 5 story chapters, 10 independent OSM routes, four bikes
+ok 1 - original V7 content is retained: 5 story chapters, 10 independent OSM routes, four bikes
+  ---
+  duration_ms: 2.785418
+  type: 'test'
+  ...
+# Subtest: all 10 custom maps and all unlocked five story chapters initialize valid physical gates
+ok 2 - all 10 custom maps and all unlocked five story chapters initialize valid physical gates
+  ---
+  duration_ms: 8.898192
+  type: 'test'
+  ...
+# Subtest: locked story chapters cannot be started through configuration
+ok 3 - locked story chapters cannot be started through configuration
+  ---
+  duration_ms: 0.506547
+  type: 'test'
+  ...
+# Subtest: migration reconciles carries using max, retains campaign and does not duplicate counters
+ok 4 - migration reconciles carries using max, retains campaign and does not duplicate counters
+  ---
+  duration_ms: 0.326892
+  type: 'test'
+  ...
+# Subtest: corrupted saves fall back safely, and current V9 saves round-trip
+ok 5 - corrupted saves fall back safely, and current V9 saves round-trip
+  ---
+  duration_ms: 0.95583
+  type: 'test'
+  ...
+# Subtest: preview carry/kiss never changes counters, badges, progress, gifts or persistence
+ok 6 - preview carry/kiss never changes counters, badges, progress, gifts or persistence
+  ---
+  duration_ms: 1.411301
+  type: 'test'
+  ...
+# Subtest: preview during a race restores the exact pre-preview race without advancing time
+ok 7 - preview during a race restores the exact pre-preview race without advancing time
+  ---
+  duration_ms: 8.704677
+  type: 'test'
+  ...
+# Subtest: only severe collisions trigger a carry; each third actual carry enables kiss once
+ok 8 - only severe collisions trigger a carry; each third actual carry enables kiss once
+  ---
+  duration_ms: 13.424938
+  type: 'test'
+  ...
+# Subtest: cutscene skip clears gameplay state and applies one checkpoint recovery penalty
+ok 9 - cutscene skip clears gameplay state and applies one checkpoint recovery penalty
+  ---
+  duration_ms: 2.642607
+  type: 'test'
+  ...
+# Subtest: cutscene completes naturally through its state machine
+ok 10 - cutscene completes naturally through its state machine
+  ---
+  duration_ms: 9.537605
+  type: 'test'
+  ...
+# Subtest: progress/distance alone cannot finish or grant medals
+ok 11 - progress/distance alone cannot finish or grant medals
+  ---
+  duration_ms: 1.020495
+  type: 'test'
+  ...
+# Subtest: checkpoints reject wrong order, wrong direction, bypassed width and teleport crossings
+ok 12 - checkpoints reject wrong order, wrong direction, bypassed width and teleport crossings
+  ---
+  duration_ms: 0.518255
+  type: 'test'
+  ...
+# Subtest: ordered physical gate crossings complete a lap, grant one result and persist progression
+ok 13 - ordered physical gate crossings complete a lap, grant one result and persist progression
+  ---
+  duration_ms: 1.065942
+  type: 'test'
+  ...
+# Subtest: two laps require two whole ordered checkpoint sequences
+ok 14 - two laps require two whole ordered checkpoint sequences
+  ---
+  duration_ms: 0.430025
+  type: 'test'
+  ...
+# Subtest: rescue returns to last valid checkpoint without skipping the next one
+ok 15 - rescue returns to last valid checkpoint without skipping the next one
+  ---
+  duration_ms: 1.823238
+  type: 'test'
+  ...
+# Subtest: pickups require spatial overlap, not elapsed time or progress
+ok 16 - pickups require spatial overlap, not elapsed time or progress
+  ---
+  duration_ms: 0.472157
+  type: 'test'
+  ...
+# Subtest: a swept path detects a real obstacle and no collision occurs in the opposite lane
+ok 17 - a swept path detects a real obstacle and no collision occurs in the opposite lane
+  ---
+  duration_ms: 0.376505
+  type: 'test'
+  ...
+# Subtest: player receives no throttle or steering assistance
+ok 18 - player receives no throttle or steering assistance
+  ---
+  duration_ms: 12.143057
+  type: 'test'
+  ...
+# Subtest: rain materially reduces turning grip, and settings are sanitized
+ok 19 - rain materially reduces turning grip, and settings are sanitized
+  ---
+  duration_ms: 1.128595
+  type: 'test'
+  ...
+# Subtest: pause/countdown and fixed stepping do not advance a frozen race
+ok 20 - pause/countdown and fixed stepping do not advance a frozen race
+  ---
+  duration_ms: 1.395458
+  type: 'test'
+  ...
+# Subtest: a real OSM lap can finish using throttle/brake/steer only, without position edits or rescue
+ok 21 - a real OSM lap can finish using throttle/brake/steer only, without position edits or rescue
+  ---
+  duration_ms: 212.923759
+  type: 'test'
+  ...
+# Subtest: progress backups round-trip and reject unrelated or oversized files
+ok 22 - progress backups round-trip and reject unrelated or oversized files
+  ---
+  duration_ms: 2.27134
+  type: 'test'
+  ...
+# Subtest: frame monitor reports measured frame interval distribution rather than capping FPS
+ok 23 - frame monitor reports measured frame interval distribution rather than capping FPS
+  ---
+  duration_ms: 1.304023
+  type: 'test'
+  ...
+# Subtest: adaptive resolution reduces rendering work under load without changing simulated time
+ok 24 - adaptive resolution reduces rendering work under load without changing simulated time
+  ---
+  duration_ms: 2.889271
+  type: 'test'
+  ...
+# Subtest: spatial grid retrieves local candidates and reuses output arrays
+ok 25 - spatial grid retrieves local candidates and reuses output arrays
+  ---
+  duration_ms: 1.745354
+  type: 'test'
+  ...
+# Subtest: V8 progress is preserved while V9 reward fields start unearned
+ok 26 - V8 progress is preserved while V9 reward fields start unearned
+  ---
+  duration_ms: 3.975212
+  type: 'test'
+  ...
+# Subtest: V9 profile reload retains names, purchased upgrades and an explicitly earned memory
+ok 27 - V9 profile reload retains names, purchased upgrades and an explicitly earned memory
+  ---
+  duration_ms: 1.245657
+  type: 'test'
+  ...
+# Subtest: names normalize Vietnamese Unicode, reject empty/markup and count graphemes
+ok 28 - names normalize Vietnamese Unicode, reject empty/markup and count graphemes
+  ---
+  duration_ms: 0.371929
+  type: 'test'
+  ...
+# Subtest: display replacement respects stable IDs, whole Unicode words and swapped names
+ok 29 - display replacement respects stable IDs, whole Unicode words and swapped names
+  ---
+  duration_ms: 5.261629
+  type: 'test'
+  ...
+# Subtest: settings migrate legacy quality names and bound camera/touch parameters
+ok 30 - settings migrate legacy quality names and bound camera/touch parameters
+  ---
+  duration_ms: 0.336366
+  type: 'test'
+  ...
+# Subtest: garage purchases deduct exactly once, preserve other bikes and enforce level/cost bounds
+ok 31 - garage purchases deduct exactly once, preserve other bikes and enforce level/cost bounds
+  ---
+  duration_ms: 0.510082
+  type: 'test'
+  ...
+# Subtest: failed purchases are atomic and cannot spend negative/nonexistent money or arbitrary keys
+ok 32 - failed purchases are atomic and cannot spend negative/nonexistent money or arbitrary keys
+  ---
+  duration_ms: 0.402744
+  type: 'test'
+  ...
+# Subtest: effective tuning changes actual bike stats while preserving catalog and scooter identity
+ok 33 - effective tuning changes actual bike stats while preserving catalog and scooter identity
+  ---
+  duration_ms: 0.511985
+  type: 'test'
+  ...
+# Subtest: cosmetics change supported parts atomically without changing names or reward state
+ok 34 - cosmetics change supported parts atomically without changing names or reward state
+  ---
+  duration_ms: 0.482191
+  type: 'test'
+  ...
+# Subtest: V9 story has five rising opponents, named chapters and authored lighting
+ok 35 - V9 story has five rising opponents, named chapters and authored lighting
+  ---
+  duration_ms: 1.305295
+  type: 'test'
+  ...
+# Subtest: fixed simulation produces matching motion at 30, 60 and 120 render updates
+ok 36 - fixed simulation produces matching motion at 30, 60 and 120 render updates
+  ---
+  duration_ms: 34.258651
+  type: 'test'
+  ...
+# Subtest: active drift requires speed, steering and braking, then rewards a clean controlled release
+ok 37 - active drift requires speed, steering and braking, then rewards a clean controlled release
+  ---
+  duration_ms: 11.671412
+  type: 'test'
+  ...
+# Subtest: Nitro spends a finite reserve, boosts acceleration, stays bounded and grants no checkpoint
+ok 38 - Nitro spends a finite reserve, boosts acceleration, stays bounded and grants no checkpoint
+  ---
+  duration_ms: 9.42558
+  type: 'test'
+  ...
+# Subtest: ending preview skips and finishes without any reward or save mutation, restoring exact race
+ok 39 - ending preview skips and finishes without any reward or save mutation, restoring exact race
+  ---
+  duration_ms: 5.050567
+  type: 'test'
+  ...
+# Subtest: only a valid first-place boss finish grants the bracelet; replay does not duplicate currency
+ok 40 - only a valid first-place boss finish grants the bracelet; replay does not duplicate currency
+  ---
+  duration_ms: 5.866301
+  type: 'test'
+  ...
+# Subtest: losing the boss and winning custom races never unlock the story gift
+ok 41 - losing the boss and winning custom races never unlock the story gift
+  ---
+  duration_ms: 2.530381
+  type: 'test'
+  ...
+# Subtest: all six ending stages are deterministic and independent of race timers
+ok 42 - all six ending stages are deterministic and independent of race timers
+  ---
+  duration_ms: 0.452066
+  type: 'test'
+  ...
+# Subtest: each later story route has an actual OSM branch with ordered gates and no credit for exit-only jumps
+ok 43 - each later story route has an actual OSM branch with ordered gates and no credit for exit-only jumps
+  ---
+  duration_ms: 2.043654
+  type: 'test'
+  ...
+# Subtest: Lucien Chase is bounded to intermediate chapters, ends on escape and grants no ending
+ok 44 - Lucien Chase is bounded to intermediate chapters, ends on escape and grants no ending
+  ---
+  duration_ms: 1.70183
+  type: 'test'
+  ...
+# Subtest: AI takes continuous bounded speed steps and obeys bike limits without final-distance boosts
+ok 45 - AI takes continuous bounded speed steps and obeys bike limits without final-distance boosts
+  ---
+  duration_ms: 448.144975
+  type: 'test'
+  ...
+# Subtest: final boss completes its original route continuously with tactical branch use
+ok 46 - final boss completes its original route continuously with tactical branch use
+  ---
+  duration_ms: 1029.076171
+  type: 'test'
+  ...
+1..46
+# tests 46
+# suites 0
+# pass 46
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2811.568806

@@ -1,6 +1,9 @@
-import {clamp, angleDiff, modulo, sampleTrack, nearestPoint} from './data.js';
+import {clamp, angleDiff, modulo, sampleTrack, nearestPoint, sampleBranch, nearestBranch} from './data.js?v=9';
+import {normalizeProfile,normalizeSettings,sanitizeName,tunedVehicle,upgradeVehicle as buyUpgrade,setCosmetics as changeCosmetics,HEART_BRACELET} from './profile.js?v=9';
 
-export const SAVE_KEY = 'hpmoto.v8.save';
+export const SAVE_KEY = 'hpmoto.v9.save';
+export const LEGACY_SAVE_KEY = 'hpmoto.v8.save';
+export const ENDING_DURATION = 46;
 const validTimes = ['day', 'sunset', 'night'];
 const validWeather = ['clear', 'rain', 'fog'];
 const defaultSettings = {quality: 'high', time: 'day', weather: 'clear', sound: true, carryEnabled: true, controlScale: 1, controlOpacity: .7};
@@ -9,8 +12,8 @@ const readJSON = (storage, key, fallback = null) => {try {return JSON.parse(stor
 const cleanObject = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 
 /** Read old saves without modifying or deleting them. Conflicting carry counters are not added. */
-export function loadSave(storage) {
-  const current = readJSON(storage, SAVE_KEY);
+function loadLegacySave(storage) {
+  const current = readJSON(storage, LEGACY_SAVE_KEY);
   if (current?.version === 8) {
     return {...current, version: 8, unlocked: clamp(integer(current.unlocked, 1), 1, 5),
       wins: cleanObject(current.wins), best: cleanObject(current.best), badges: cleanObject(current.badges),
@@ -46,6 +49,11 @@ export function loadSave(storage) {
       legacyBadges: cleanObject(legacy.unlockedBadges), note: 'Conflicting V7 counters migrated with max, not sum. Old records remain untouched.'}};
 }
 
+export function loadSave(storage){
+  const current=readJSON(storage,SAVE_KEY);
+  return normalizeProfile(current?.version===9?current:loadLegacySave(storage));
+}
+
 function changeEvent(detail) {
   // Native CustomEvent exists in browsers and Node 24; the fallback makes node:test portable.
   if (typeof CustomEvent === 'function') return new CustomEvent('change', {detail});
@@ -77,16 +85,20 @@ export class GameEngine extends EventTarget {
     catch {this._emit('toast', {text: 'Trình duyệt không cho lưu. Tiến trình vẫn giữ trong phiên này.'}); return false;}
   }
   setSettings(settings) {
-    const allowed = {...this.save.settings};
-    if (['low', 'high', 'ultra'].includes(settings.quality)) allowed.quality = settings.quality;
-    if (validTimes.includes(settings.time)) allowed.time = settings.time;
-    if (validWeather.includes(settings.weather)) allowed.weather = settings.weather;
-    for (const key of ['sound', 'carryEnabled']) if (typeof settings[key] === 'boolean') allowed[key] = settings[key];
-    if (Number.isFinite(Number(settings.controlScale))) allowed.controlScale = clamp(Number(settings.controlScale), .75, 1.4);
-    if (Number.isFinite(Number(settings.controlOpacity))) allowed.controlOpacity = clamp(Number(settings.controlOpacity), .25, 1);
-    this.save.settings = allowed; Object.assign(this.state.config, allowed);
-    this.state.environment = {time: allowed.time, weather: allowed.weather};
-    this.persist(); this._emit('state');
+    this.save.settings=normalizeSettings({...this.save.settings,...settings});
+    Object.assign(this.state.config,this.save.settings);
+    this.state.environment={time:this.save.settings.time,weather:this.save.settings.weather};
+    this.persist();this._emit('state');
+  }
+  setNames(names){
+    this.save.characterNames={aurora:sanitizeName(names?.aurora,'Aurora'),lucien:sanitizeName(names?.lucien,'Lucien')};
+    this.state.characterNames={...this.save.characterNames};this.persist();this._emit('profile');return this.save.characterNames;
+  }
+  upgradeVehicle(id,kind){const result=buyUpgrade(this.save,id,kind);if(result.ok){this.state.bike=tunedVehicle(this.data.vehicles[this.state.config.vehicle],this.save);this.persist();this._emit('profile');}return result;}
+  setCosmetics(changes){const result=changeCosmetics(this.save,changes);if(result.ok){this.state.cosmetics={...result.cosmetics};this.persist();this._emit('profile');}return result;}
+  getRenderState(){
+    const s=this.state,a=clamp(this._accumulator*120,0,1),pose=o=>{const p=o.previous;if(!p)return o;return {...o,x:p.x+(o.x-p.x)*a,y:p.y+(o.y-p.y)*a,heading:p.heading+angleDiff(o.heading,p.heading)*a,lean:p.lean+(o.lean-p.lean)*a};};
+    return {...s,player:pose(s.player),rivals:s.rivals.map(pose)};
   }
   setEnvironment(time, weather) {
     this.setSettings({time: validTimes.includes(time) ? time : this.state.environment.time,
@@ -97,12 +109,15 @@ export class GameEngine extends EventTarget {
     const track = this.data.tracks[config.track], start = sampleTrack(track, 0, -2.5);
     const player = {...start, id: 'aurora', speed: 0, steer: 0, lean: 0, brake: 0, throttle: 0, tuck: false,
       lap: 1, checkpoint: 0, totalProgress: 0, progress: 0, offRouteTime: 0, wheelRotation: 0, hitTimer: 0, mood: 'focused'};
+    Object.assign(player,{nitro:0,nitroActive:false,drifting:false,slip:0,driftTime:0,driftCharge:0,combo:0,comboTimer:0,driftScore:0,weightTransfer:0});
     const state = {phase: 'countdown', config, track, player,
       rivals: [{...sampleTrack(track, 0, 2.5), id: config.opponent || 'lucien', speed: 0, progress: 0, totalProgress: 0, finishTime: null, lean: 0}],
       elapsed: 0, countdown: 3, lap: 1, laps: config.laps, rank: 1, checkpointIndex: 1,
       checkpoints: checkpointList(track), obstacles: [], pickups: [], warning: '', nextTurn: null,
       cutscene: null, result: null, cameraMode: 0, environment: {time: config.time || 'day', weather: config.weather || 'clear'},
-      stats: {collisions: 0, lightHits: 0, mediumHits: 0, severeHits: 0, offtrack: 0, pickups: 0, carries: 0, penalties: 0,
+      bike:tunedVehicle(this.data.vehicles[config.vehicle]||this.data.vehicles[0],this.save),aiBike:tunedVehicle(this.data.vehicles[config.vehicle]||this.data.vehicles[0],null),characterNames:{...this.save.characterNames},cosmetics:{...this.save.garage.cosmetics},
+      ending:null,chase:null,shortcut:null,branches:[],skillMessage:'',
+      stats: {skillCoins:0,driftSeconds:0,nitroSeconds:0,shortcuts:0,collisions: 0, lightHits: 0, mediumHits: 0, severeHits: 0, offtrack: 0, pickups: 0, carries: 0, penalties: 0,
         checkpointsPassed: 0, lapsCompleted: 0, distanceDriven: 0}};
     // Designed lane patterns, clear 130m runway and at least one entirely open half-lane.
     const obstacleCount = Math.max(4, Math.min(28, Math.floor(track.length / 145)));
@@ -119,6 +134,19 @@ export class GameEngine extends EventTarget {
       state.pickups.push({...sampleTrack(track, 95 + i * (track.length - 170) / Math.max(1, Math.floor(track.length / 125)), i % 2 ? -2.5 : 2.5),
         id: `gift-${i}`, type: i % 3 ? 'flower' : 'gift', radius: 1.35, collected: false});
     }
+    for(const branch of track.shortcuts||[]){
+
+      let entryDistance=0;
+      for(let d=2;d<branch.length*.6;d+=2){const q=sampleBranch(branch,d);if(nearestPoint(track,q.x,q.y,branch.entry).distance>track.halfWidth+.5){entryDistance=d;break;}}
+      if(!entryDistance)continue;
+      const count=Math.max(3,Math.ceil((branch.length-entryDistance)/22)),gates=[];
+      for(let i=0;i<=count;i++)gates.push({...sampleBranch(branch,entryDistance+(branch.length-entryDistance)*i/count),index:i,radius:branch.halfWidth+.5});
+      const forkProgress=nearestPoint(track,gates[0].x,gates[0].y,branch.entry).progress;
+      const mainIndices=state.checkpoints.filter(cp=>cp.progress>Math.max(branch.entry,forkProgress)+.5&&cp.progress<=branch.exit+1&&cp.index!==0).map(cp=>cp.index);
+      if(mainIndices.length)state.branches.push({...branch,mainIndices,gates});
+    }
+    const intro=config.mode==='story'&&config.level===0;
+    if(intro)state.obstacles=state.obstacles.filter((o,i)=>i%3===0&&o.type==='cone');
     return state;
   }
 
@@ -131,6 +159,7 @@ export class GameEngine extends EventTarget {
       config.track = config.level; config.laps = 1;
       config.opponent = this.data.levels[config.level].opponent;
       config.difficulty = this.data.levels[config.level].pace;
+      config.time=this.data.levels[config.level].time;
     }
     config.track = clamp(integer(config.track), 0, this.data.tracks.length - 1);
     config.vehicle = clamp(integer(config.vehicle), 0, this.data.vehicles.length - 1);
@@ -145,7 +174,7 @@ export class GameEngine extends EventTarget {
   restart() {return this.start({...this.state.config});}
   toMenu() {
     if (this.state.cutscene?.preview && this._savedPreviewState) this.state = this._savedPreviewState;
-    this.state.phase = 'menu'; this.state.cutscene = null; this.state.warning = '';
+    this.state.phase = 'menu'; this.state.cutscene = null;this.state.ending=null;this.state.chase=null; this.state.warning = '';
     this._savedPreviewState = null; this._returnPhase = null; this._accumulator = 0; this._emit('state');
   }
   pause() {
@@ -160,6 +189,10 @@ export class GameEngine extends EventTarget {
   update(delta, input = {}) {
     if (!Number.isFinite(delta) || delta <= 0) return;
     const s = this.state;
+    this.metrics={aiMs:0};
+    if(s.phase==='ending'){
+      if(!s.ending.complete){s.ending.elapsed=Math.min(ENDING_DURATION,s.ending.elapsed+Math.min(delta,.1));s.ending.stage=endingStage(s.ending.elapsed);s.ending.complete=s.ending.elapsed>=ENDING_DURATION;}return;
+    }
     if (s.phase === 'cutscene') {
       s.cutscene.elapsed += Math.min(delta, .1);
       const t = s.cutscene.elapsed;
@@ -181,32 +214,49 @@ export class GameEngine extends EventTarget {
   }
 
   _step(dt, input) {
-    const s = this.state, p = s.player, bike = this.data.vehicles[s.config.vehicle];
+    const s = this.state, p = s.player, bike = s.bike;
+    p.previous={x:p.x,y:p.y,heading:p.heading,lean:p.lean};
+    for(const r of s.rivals)r.previous={x:r.x,y:r.y,heading:r.heading,lean:r.lean};
     this._crashCooldown = Math.max(0, this._crashCooldown - dt);
     this._contactCooldown = Math.max(0, this._contactCooldown - dt);
     p.hitTimer = Math.max(0, p.hitTimer - dt); s.elapsed += dt;
     const throttle = clamp(Number(input.throttle) || 0, 0, 1), brake = clamp(Number(input.brake) || 0, 0, 1);
     p.steer += (clamp(Number(input.steer) || 0, -1, 1) - p.steer) * (1 - Math.exp(-9 * dt));
-    p.throttle = throttle; p.brake = brake; p.tuck = Boolean(input.tuck);
-    const wetGrip = s.environment.weather === 'rain' ? .73 : 1;
-    const drag = .38 + p.speed * .012 + p.speed * p.speed * .00035;
-    p.speed = clamp(p.speed + (throttle * bike.acc * (p.tuck ? 1.035 : 1) - brake * 15.5 * wetGrip - drag) * dt, 0, bike.max * (p.tuck ? 1.025 : 1));
-    const yaw = p.steer * Math.min(p.speed / 4, 1) * 1.42 / (1 + p.speed / 33) * wetGrip * bike.grip;
-    p.heading += yaw * dt;
-    p.lean += ((-p.steer * Math.min(p.speed / 35, 1) * .65) - p.lean) * Math.min(1, dt * 8);
-    const oldX = p.x, oldY = p.y;
-    p.x += Math.cos(p.heading) * p.speed * dt;
-    p.y += Math.sin(p.heading) * p.speed * dt;
-    p.wheelRotation += p.speed * dt / .335;
-    const nearest = nearestPoint(s.track, p.x, p.y, p.progress);
+    p.throttle += (throttle-p.throttle)*(1-Math.exp(-6*dt));p.brake=brake;p.tuck=Boolean(input.tuck);
+    p.weightTransfer+=(brake*.13-p.throttle*.035-p.weightTransfer)*Math.min(1,dt*9);
+    const wetGrip=s.environment.weather==='rain'?.73:1;
+    const wasDrifting=p.drifting;
+    p.drifting=Boolean(input.drift)&&Math.abs(p.steer)>.2&&p.speed>bike.driftMinSpeed&&(brake>.08||wasDrifting);
+    p.slip+=( (p.drifting?p.steer*.28/(bike.driftGrip*bike.stability):0)-p.slip)*(1-Math.exp(-dt*(p.drifting?4:8)));
+    p.comboTimer=Math.max(0,p.comboTimer-dt);if(!p.comboTimer&&!p.drifting)p.combo=0;
+    if(p.drifting){p.driftTime+=dt;p.driftCharge+=dt*(8+p.speed*.22);s.stats.driftSeconds+=dt;}
+    if(wasDrifting&&!p.drifting){
+      if(p.driftTime>.55&&p.hitTimer<=0){p.combo=Math.min(8,p.combo+1);p.comboTimer=4;p.nitro=Math.min(bike.nitroCapacity,p.nitro+p.driftCharge);p.driftScore+=Math.floor(p.driftTime*100*p.combo);const coins=Math.min(25,Math.floor(p.driftTime*3)+2);this.save.coins+=coins;s.stats.skillCoins+=coins;this.persist();this._emit('skill',{text:`Drift x${p.combo} · +${coins} xu`});}
+      p.driftTime=p.driftCharge=0;
+    }
+    p.nitroActive=Boolean(input.nitro)&&p.nitro>.05;
+    if(p.nitroActive){p.nitro=Math.max(0,p.nitro-dt*25);s.stats.nitroSeconds+=dt;}
+    const drag=.38+p.speed*.012+p.speed*p.speed*.00035+(p.drifting?.7+Math.abs(p.slip)*2:0);
+    const acceleration=p.throttle*bike.acc*(p.tuck?1.035:1)+(p.nitroActive?bike.nitroPower:0);
+    p.speed=clamp(p.speed+(acceleration-brake*bike.brakePower*wetGrip*(p.drifting?.35:1)-drag)*dt,0,bike.max*(p.nitroActive?1.13:p.tuck?1.025:1));
+    const yaw=p.steer*Math.min(p.speed/4,1)*1.42/(1+p.speed/33)*wetGrip*bike.grip*(p.drifting?1.16:1);
+    p.heading+=yaw*dt;
+    p.lean+=((-p.steer*Math.min(p.speed/35,1)*.65-p.slip*.3)-p.lean)*Math.min(1,dt*8);
+    const oldX=p.x,oldY=p.y;
+    p.x+=Math.cos(p.heading+p.slip)*p.speed*dt;p.y+=Math.sin(p.heading+p.slip)*p.speed*dt;
+    p.wheelRotation+=p.speed*dt/.335;
+    let nearest = nearestPoint(s.track, p.x, p.y, p.progress),halfWidth=s.track.halfWidth;
+    for(const branch of s.branches){if(s.shortcut?.id!==branch.id&&s.checkpointIndex!==branch.mainIndices[0])continue;
+      const n=nearestBranch(branch,p.x,p.y);if(n.distance<nearest.distance){nearest=n;halfWidth=branch.halfWidth;}}
+
     p.progress = nearest.progress;
     const sideways = Math.sin(angleDiff(p.heading, nearest.heading));
     // Solid race curbs bound the corridor. A glancing scrape slows; a perpendicular high-speed impact is serious.
-    if (nearest.distance > s.track.halfWidth - .65) {
+    if (nearest.distance > halfWidth - .65) {
       const impact = p.speed * Math.abs(sideways);
       const side = Math.sign(nearest.signedDistance) || 1;
-      p.x = nearest.x + nearest.nx * side * (s.track.halfWidth - .68);
-      p.y = nearest.y + nearest.ny * side * (s.track.halfWidth - .68);
+      p.x = nearest.x + nearest.nx * side * (halfWidth - .68);
+      p.y = nearest.y + nearest.ny * side * (halfWidth - .68);
       p.speed *= Math.exp(-dt * (impact > 12 ? 5 : .8));
       if (this._contactCooldown <= 0 && impact > 3) {
         this._contactCooldown = 1.5;
@@ -228,7 +278,8 @@ export class GameEngine extends EventTarget {
     s.stats.distanceDriven += Math.hypot(p.x - oldX, p.y - oldY);
     this._worldCollisions(oldX, oldY);
     if (s.phase !== 'race') return;
-    this._updateAI(dt);
+    this._updateAI(dt);this._updateChase(dt);
+    for(const r of s.rivals){const gap=r.totalProgress-p.totalProgress,old=r.lastPlayerGap??gap;if(old>0&&gap<=0&&Math.hypot(r.x-p.x,r.y-p.y)<6&&Math.hypot(r.x-p.x,r.y-p.y)>1.5&&!p.hitTimer&&s.elapsed-(r.lastNearPass??-100)>15){r.lastNearPass=s.elapsed;p.nitro=Math.min(bike.nitroCapacity,p.nitro+12);this._emit('skill',{text:'Vượt sát an toàn · +12 Nitro'});}r.lastPlayerGap=gap;}
     s.rank = 1 + s.rivals.filter(r => r.totalProgress > p.totalProgress || r.finishTime !== null).length;
     let turn = null, turnDistance = 180;
     for (const candidate of s.track.turns) {
@@ -241,7 +292,13 @@ export class GameEngine extends EventTarget {
   }
 
   _crossCheckpoint(ax, ay, bx, by) {
-    const s = this.state, p = s.player, cp = s.checkpoints[s.checkpointIndex];
+    const s = this.state,p=s.player;
+    if(s.shortcut){const branch=s.branches.find(b=>b.id===s.shortcut.id),gate=branch.gates[s.shortcut.nextGate];
+      if(crossGate(gate,ax,ay,bx,by)){s.shortcut.nextGate++;
+        if(s.shortcut.nextGate>=branch.gates.length){for(const i of branch.mainIndices)s.checkpoints[i].passed=true;s.stats.checkpointsPassed+=branch.mainIndices.length;p.checkpoint=branch.mainIndices.at(-1);s.checkpointIndex=(p.checkpoint+1)%s.checkpoints.length;s.stats.shortcuts++;s.shortcut=null;this._emit('skill',{text:'Qua lối tắt hợp lệ!'});}return true;}return false;
+    }
+    for(const branch of s.branches)if(s.checkpointIndex===branch.mainIndices[0]&&crossGate(branch.gates[0],ax,ay,bx,by)){s.shortcut={id:branch.id,nextGate:1};return true;}
+    const cp = s.checkpoints[s.checkpointIndex];
     const before = (ax - cp.x) * cp.tx + (ay - cp.y) * cp.ty;
     const after = (bx - cp.x) * cp.tx + (by - cp.y) * cp.ty;
     if (before > 0 || after < 0 || after === before) return false;
@@ -292,25 +349,50 @@ export class GameEngine extends EventTarget {
   }
 
   _updateAI(dt) {
-    const s = this.state, max = this.data.vehicles[s.config.vehicle].max;
-    for (const rival of s.rivals) {
-      if (rival.finishTime !== null) {rival.speed *= Math.exp(-dt * 3); continue;}
-      const frame = sampleTrack(s.track, rival.progress);
-      const ahead = sampleTrack(s.track, rival.progress + 25);
-      const curve = Math.abs(angleDiff(ahead.heading, frame.heading));
-      const grip = s.environment.weather === 'rain' ? .82 : 1;
-      const targetSpeed = Math.max(8, Math.min(max * .72 * s.config.difficulty * grip, 23 / (1 + curve * 2.8)));
-      rival.speed += clamp(targetSpeed - rival.speed, -14 * dt, 6 * dt);
-      rival.totalProgress += rival.speed * dt; rival.progress = modulo(rival.totalProgress, s.track.length);
-      const point = sampleTrack(s.track, rival.progress, 2.3);
-      Object.assign(rival, {x: point.x, y: point.y, heading: point.heading, lean: -angleDiff(ahead.heading, frame.heading) * .45});
-      if (rival.totalProgress >= s.track.length * s.laps) rival.finishTime = s.elapsed;
+    const began=performance.now(),s=this.state,bike=s.aiBike,level=s.config.mode==='story'?s.config.level:Math.round((s.config.difficulty-.6)*9);
+    for(const r of s.rivals){
+      if(r.finishTime!==null){r.speed*=Math.exp(-dt*3);continue;}
+      const frame=sampleTrack(s.track,r.progress),ahead=sampleTrack(s.track,r.progress+28),curve=Math.abs(angleDiff(ahead.heading,frame.heading)),wet=s.environment.weather==='rain'?.8:1;
+      r.nitro??=0;r.nitroActive=level>=3&&r.nitro>12&&curve<.17&&r.speed>12;r.drifting=level>=1&&curve>.4&&r.speed>bike.driftMinSpeed;
+      if(r.drifting)r.nitro=Math.min(bike.nitroCapacity,r.nitro+dt*(level>=3?8:3));if(r.nitroActive)r.nitro=Math.max(0,r.nitro-dt*25);
+      let lane=2.1;const hazard=s.obstacles.find(o=>!o.hit&&modulo(o.progress-r.progress,s.track.length)<Math.max(18,r.speed*1.8));
+      if(hazard)lane=nearestPoint(s.track,hazard.x,hazard.y,hazard.progress).signedDistance>0?-2.8:2.8;
+      if(level>=2&&Math.abs(r.totalProgress-s.player.totalProgress)<15)lane=s.player.steer>0?-3.1:3.1;
+      r.lane=(r.lane??2.5)+(lane-(r.lane??2.5))*Math.min(1,dt*2);
+      if(!r.branch&&level>=2)for(const branch of s.branches){const gap=branch.entry-r.progress;if(gap>-1&&gap<10){r.branch={id:branch.id,distance:0};break;}}
+      const branch=r.branch&&s.branches.find(b=>b.id===r.branch.id),look=Math.max(6,r.speed*.7);
+      let aim=sampleTrack(s.track,r.progress+look,r.lane*Math.max(0,1-curve*3));
+      if(branch){const nearest=nearestBranch(branch,r.x,r.y);r.branch.distance=nearest.branchProgress;aim=sampleBranch(branch,nearest.branchProgress+look);}
+      const error=angleDiff(Math.atan2(aim.y-r.y,aim.x-r.x),r.heading),steer=clamp(error*3,-1,1);
+      let target=Math.max(3,Math.min(bike.max*.72*s.config.difficulty*wet*(r.nitroActive?1.13:1),(13+level*1.2)/(1+curve*1.5)));if(Math.abs(error)>.8)target=Math.min(target,2.2);
+      r.speed+=clamp(target-r.speed,-bike.brakePower*wet*dt,(bike.acc+(r.nitroActive?bike.nitroPower:0))*dt);
+      r.heading+=steer*Math.min(r.speed/4,1)*1.42/(1+r.speed/33)*wet*bike.grip*dt;
+      r.x+=Math.cos(r.heading)*r.speed*dt;r.y+=Math.sin(r.heading)*r.speed*dt;r.lean+=(-steer*Math.min(r.speed/35,1)*.65-r.lean)*Math.min(1,dt*8);
+      let n=nearestPoint(s.track,r.x,r.y,r.progress);
+      if(branch){const local=nearestBranch(branch,r.x,r.y);if(local.branchProgress>branch.length-3&&n.distance<s.track.halfWidth){r.branch=null;n=nearestPoint(s.track,r.x,r.y,branch.exit);}else n=local;}
+      let delta=angleProgress(n.progress-r.progress,s.track.length);
+      // Only actual movement advances the rival. No catch-up multiplier, snapping or finish teleport.
+      if(Math.abs(delta)>Math.max(branch?30:5,r.speed*dt*5))delta=0;
+      r.totalProgress=Math.max(0,r.totalProgress+delta);r.progress=modulo(r.progress+delta,s.track.length);
+      if(r.totalProgress>=s.track.length*s.laps)r.finishTime=s.elapsed;
     }
+    if(this.metrics)this.metrics.aiMs+=performance.now()-began;
+  }
+  _updateChase(dt){
+    const s=this.state,p=s.player;
+    if(s.config.mode!=='story'||s.config.level===4||s.phase!=='race'||s.config.carryEnabled===false)return;
+    if(!s.chase&&s.elapsed>80&&(s.config.level>0)&&!s.chaseAttempted){s.chaseAttempted=true;const q=sampleTrack(s.track,p.progress-28,-2.5);s.chase={...q,id:'lucien',active:true,speed:Math.max(10,p.speed),totalProgress:p.totalProgress-28,elapsed:0};this._emit('chase',{text:'Hahaha! Có giỏi thì đuổi kịp em nhé!'});}
+    const c=s.chase;if(!c?.active)return;c.elapsed+=dt;
+    const target=Math.min(s.bike.max*.84,p.speed+5);c.speed+=clamp(target-c.speed,-s.bike.brakePower*dt,s.bike.acc*dt);c.totalProgress+=c.speed*dt;
+    const q=sampleTrack(s.track,c.totalProgress,-2.5);Object.assign(c,{x:q.x,y:q.y,heading:q.heading,progress:q.progress});
+    if(c.elapsed>2&&Math.hypot(c.x-p.x,c.y-p.y)<2.4){c.active=false;this._beginCarry('Lucien đuổi kịp rồi! Hahaha!',false,false);}
+    else if(c.elapsed>14||p.totalProgress-c.totalProgress>80){c.active=false;p.nitro=Math.min(s.bike.nitroCapacity,p.nitro+10);this._emit('skill',{text:'Thoát rồi! Lần sau anh cố hơn nhé ♡'});}
   }
 
   _finish() {
     const s = this.state;
     // Result validity is derived from physical ordered crossings, never a UI observer or distance counter.
+    if(s.result?.valid)return false;
     const expected = s.checkpoints.length * s.laps;
     if (s.stats.checkpointsPassed !== expected || s.stats.lapsCompleted !== s.laps) return false;
     const position = 1 + s.rivals.filter(r => r.finishTime !== null).length, won = position === 1;
@@ -328,7 +410,13 @@ export class GameEngine extends EventTarget {
     this.save.affection += won ? 5 : 2;
     s.result = {valid: true, won, time: s.elapsed, position, best, previous: Number.isFinite(previous) ? previous : null,
       carried: s.stats.carries, medal: won ? 'gold' : 'silver', track: s.track.name, stats: {...s.stats}};
-    s.phase = 'result'; s.player.speed = 0; this.persist(); this._emit('finish', {result: s.result}); this._emit('state'); return true;
+    const coins=won?350+(s.config.mode==='story'?s.config.level*60:0):120;this.save.coins+=coins;s.result.coins=coins;
+    s.phase='result';s.player.speed=0;s.chase=null;
+    if(won&&s.config.mode==='story'&&s.config.level===4){
+      if(!this.save.endingUnlocked){this.save.endingUnlocked=true;this.save.memories.heart_bracelet={...HEART_BRACELET,receivedAt:new Date().toISOString(),names:{...this.save.characterNames}};}
+      this._beginEnding(false,false);
+    }
+    this.persist();this._emit('finish',{result:s.result});this._emit('state');return true;
   }
 
   _beginCarry(reason, preview, forceKiss) {
@@ -371,18 +459,28 @@ export class GameEngine extends EventTarget {
   skipCutscene() {return this.continueAfterCarry();}
 
   _recover(penalty, carry = false) {
-    const s = this.state, p = s.player, cp = s.checkpoints[p.checkpoint || 0];
+    const s = this.state, p = s.player, cp = s.checkpoints[p.checkpoint || 0];s.shortcut=null;s.chase=null;
     // Put the bike just after its last VALID gate; do not advance the pending gate.
     const point = sampleTrack(s.track, cp.progress + 2, -2.5);
     Object.assign(p, {x: point.x, y: point.y, heading: point.heading, progress: point.progress,
-      speed: 0, steer: 0, lean: 0, offRouteTime: 0, hitTimer: 3, mood: carry ? 'shy' : 'focused'});
+      speed: 0, steer: 0, lean: 0, slip:0,drifting:false,nitroActive:false, offRouteTime: 0, hitTimer: 3, mood: carry ? 'shy' : 'focused'});
     s.elapsed += penalty; s.stats.penalties += penalty; s.warning = '';
     for (let i = 0; i < Math.ceil(penalty * 30); i++) this._updateAI(1 / 30);
     this._emit('toast', {text: `Trở lại checkpoint ${cp.index + 1} · +${penalty} giây${carry ? ' · Hahaha! ♡' : ''}`});
   }
+  _beginEnding(preview,replay){this.state.ending={elapsed:0,stage:'victory',complete:false,preview,replay};this.state.phase='ending';this.state.chase=null;this._accumulator=0;this._emit('ending');}
+  previewEnding(){if(['ending','cutscene'].includes(this.state.phase))return false;this._endingReturnState=this.state;this.state=this._makeState({...this.state.config,time:'night'});this._beginEnding(true,false);return true;}
+  replayEnding(){if(!this.save.endingUnlocked||this.state.phase==='ending')return false;this._endingReturnState=this.state;this.state=this._makeState({...this.state.config,time:'night'});this._beginEnding(false,true);return true;}
+  skipEnding(){if(this.state.phase!=='ending')return false;Object.assign(this.state.ending,{elapsed:ENDING_DURATION,stage:'memories',complete:true});this._emit('state');return true;}
+  finishEnding(){if(this.state.phase!=='ending')return false;const e=this.state.ending;if(e.preview||e.replay){this.state=this._endingReturnState||this.state;this._endingReturnState=null;}else{this.state.phase='result';this.state.ending=null;}this._emit('state');return true;}
   rescue() {
     if (!['race', 'paused'].includes(this.state.phase)) return false;
     this._recover(5); this._crashCooldown = Math.max(4, this._crashCooldown); this._contactCooldown = 2;
     this.state.stats.offtrack++; this._emit('state'); return true;
   }
 }
+
+export function endingStage(t){return t<5?'victory':t<12?'congratulate':t<22?'gift':t<34?'ride':t<40?'restaurant':t<46?'dinner':'memories';}
+function crossGate(cp,ax,ay,bx,by){if(!cp||Math.hypot(bx-ax,by-ay)>5)return false;const before=(ax-cp.x)*cp.tx+(ay-cp.y)*cp.ty,after=(bx-cp.x)*cp.tx+(by-cp.y)*cp.ty;if(before>0||after<0||before===after)return false;const t=-before/(after-before),x=ax+(bx-ax)*t,y=ay+(by-ay)*t;return Math.abs((x-cp.x)*cp.nx+(y-cp.y)*cp.ny)<=cp.radius;}
+
+function angleProgress(delta,length){return modulo(delta+length/2,length)-length/2;}

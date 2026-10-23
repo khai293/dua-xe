@@ -57,10 +57,10 @@ test('migration reconciles carries using max, retains campaign and does not dupl
   assert.equal(save.badges.boss_lucien_clear, false); assert.equal(storage.getItem('hpmoto.carries.v5'), '2');
 });
 
-test('corrupted saves fall back safely, and current V8 saves round-trip', () => {
+test('corrupted saves fall back safely, and current V9 saves round-trip', () => {
   const engine = fresh({[SAVE_KEY]: '{bad json'}); assert.equal(engine.save.unlocked, 1);
   engine.setSettings({quality: 'low', controlOpacity: .5}); engine.save.totalCarries = 6; engine.persist();
-  const restored = new GameEngine(data, engine.storage); assert.equal(restored.save.totalCarries, 6); assert.equal(restored.save.settings.quality, 'low');
+  const restored = new GameEngine(data, engine.storage); assert.equal(restored.save.totalCarries, 6); assert.equal(restored.save.settings.quality, 'performance');
 });
 
 test('preview carry/kiss never changes counters, badges, progress, gifts or persistence', () => {
@@ -186,7 +186,7 @@ test('rain materially reduces turning grip, and settings are sanitized', () => {
   dry.update(1/120,{steer:1});wet.update(1/120,{steer:1});
   assert.ok(Math.abs(angleDiff(dry.state.player.heading,data.tracks[0] && sampleTrack(data.tracks[0],0).heading)) > Math.abs(angleDiff(wet.state.player.heading,sampleTrack(data.tracks[0],0).heading)));
   dry.setSettings({quality:'unsafe',controlScale:99,controlOpacity:-2});
-  assert.equal(dry.save.settings.quality,'high');assert.equal(dry.save.settings.controlScale,1.4);assert.equal(dry.save.settings.controlOpacity,.25);
+  assert.equal(dry.save.settings.quality,'balanced');assert.equal(dry.save.settings.controlScale,1.4);assert.equal(dry.save.settings.controlOpacity,.25);
 });
 
 test('pause/countdown and fixed stepping do not advance a frozen race', () => {

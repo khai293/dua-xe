@@ -3,7 +3,7 @@ import {mkdir, writeFile, readFile} from 'node:fs/promises';
 import {chromium} from 'playwright-core';
 
 const origin = process.env.GAME_URL || 'http://127.0.0.1:4173';
-const preview = new URL('../previews/', import.meta.url);
+const preview = new URL('../previews/v9/', import.meta.url);
 await mkdir(preview, {recursive:true});
 const browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const context = await browser.newContext({viewport:{width:1440,height:1000},deviceScaleFactor:1});
@@ -24,7 +24,7 @@ try {
   await test('boot: assets, four bikes and ten selectable custom maps',async()=>{
     assert.equal(await page.locator('.vehicle-choice').count(),4);
     assert.equal(await page.locator('.route-choice').count(),10);
-    assert.match(await page.title(),/V8/);
+    assert.match(await page.title(),/V9/);
     const state=await page.evaluate(()=>({phase:HPGP.engine.state.phase,tracks:HPGP.data.tracks.length,levels:HPGP.data.levels.length,canvas:document.querySelector('#game').width}));
     assert.equal(state.phase,'menu');assert.equal(state.tracks,10);assert.equal(state.levels,5);assert.ok(state.canvas>0);
     await snapshot('menu.png');return state;
@@ -182,7 +182,7 @@ try {
     await page.locator('#importProgress').setInputFiles({name:'hpgp-progress.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});
     await page.waitForFunction(()=>document.querySelector('#progressStatus').textContent.includes('Đã nhập'));
     assert.equal(await page.evaluate(()=>HPGP.engine.save.totalCarries),backup.save.totalCarries);
-    assert.ok(await page.evaluate(()=>localStorage.getItem('hpmoto.v8.before-import')));
+    assert.ok(await page.evaluate(()=>localStorage.getItem('hpmoto.v9.before-import')));
     await page.locator('#closeSettings').click();return {importedCarries:backup.save.totalCarries,previousBackupPreserved:true};
   });
   await test('restart and route caches remain bounded after garbage collection',async()=>{
