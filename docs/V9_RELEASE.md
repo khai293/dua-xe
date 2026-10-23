@@ -70,3 +70,9 @@ Mỗi mẫu gameplay có 179 khoảng RAF sau warmup. Bài mưa/Nitro/đổi cam
 Chi tiết máy, raw metric: [performance.json](../previews/v9/performance.json), [baseline V8](../previews/v9/baseline-v8-performance.json). Bằng chứng chức năng: [browser hồi quy](../previews/v9/browser-results.json), [browser V9](../previews/v9/v9-browser-results.json), [3 vòng qua lối tắt](../previews/v9/shortcut-laps.json).
 
 [Bằng chứng 10 vòng tuyến chính](../previews/v9/main-laps.json) · [46 unit TAP](../previews/v9/unit-results.tap) · [Video đoạn kết liên tục 47 giây](../previews/v9/ending.mp4). Video được quay từ nút xem trước qua toàn bộ timeline thật, không tua state; bản ghi màn hình không kèm track âm thanh. Game có WebAudio trực tiếp.
+
+## Xuất bản và tải xuống
+
+Đã đẩy nhánh phát triển và `main`, gắn tag `v9.0.0`. GitHub Pages xây dựng thành công bản game `29138cf`. Kiểm tra 30 tài nguyên HTTPS công khai khớp SHA-256 với mã phát hành; Chromium chạy ga và xem/bỏ qua đoạn kết thành công, không thay save, không lỗi JS hoặc thiếu tài nguyên. Do CA của Chromium trong cloud, bài này dùng gateway loopback lấy nguyên byte qua curl có xác thực TLS; không tắt TLS hay sửa trust store. [Bằng chứng](../previews/v9/published-smoke.json).
+
+[Chơi ngay](https://khai293.github.io/dua-xe/?v=9) · [Tải ZIP](https://khai293.github.io/dua-xe/downloads/Duong_Den_Tinh_Yeu_V9.zip) · [Checksum](https://khai293.github.io/dua-xe/downloads/V9_SHA256SUMS.txt). ZIP chứa mã game/tài nguyên, hướng dẫn và kiểm thử; không cần tải riêng ảnh/âm thanh. Giải nén rồi `npm run dev` bằng Node.js 22+.

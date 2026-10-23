@@ -1,0 +1,17 @@
+{
+  "url": "https://khai293.github.io/dua-xe/?v=9",
+  "commit": "29138cf31d6a007a895ee4787d68055199385b6b",
+  "method": "Public HTTPS assets fetched with curl certificate verification and rendered by Chromium through a temporary loopback gateway; browser CA trust unchanged.",
+  "title": "Đường Đến Tình Yêu V9 — Ultimate Racing & Love Story",
+  "maps": 10,
+  "vehicles": 4,
+  "levels": 5,
+  "assets": 24,
+  "speed": 5.724380335057136,
+  "previewSaveUnchanged": true,
+  "httpsResources": 30,
+  "errors": [],
+  "failures": [],
+  "mismatches": [],
+  "passed": true
+}

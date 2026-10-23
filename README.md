@@ -2,7 +2,7 @@
 
 **Ultimate Racing & Love Story** — game đua xe anime 2.5D qua các cung đường Hải Phòng.
 
-**[Ấn để chơi trên trình duyệt](https://khai293.github.io/dua-xe/)**
+**[Ấn để chơi trên trình duyệt](https://khai293.github.io/dua-xe/?v=9)** · [Tải bộ game ZIP](https://khai293.github.io/dua-xe/downloads/Duong_Den_Tinh_Yeu_V9.zip)
 
 Bản V9 tiếp tục trực tiếp V8: giữ 10 đường OSM, 4 xe, nhân vật, cảnh cứu hộ/hôn má và đọc tiến trình cũ. Thêm Drift, Nitro, gara, đổi tên, lối tắt, AI có chuyển động vật lý và đoạn kết sau khi thắng Lucien.
 
